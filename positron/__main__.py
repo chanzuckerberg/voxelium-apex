@@ -21,9 +21,9 @@ def main():
     modules = {
         "analysis_spectral": positron.analysis.spectral,
         "analysis_star_subset": positron.analysis.star_file_subset,
-        "sha3D": positron.sha3d.train,
-        "sha3D_summary": positron.sha3d.summary,
-        "sha3D_viewer": positron.sha3d.viewer,
+        "SHA3D": positron.sha3d.train,
+        "SHA3D_summary": positron.sha3d.summary,
+        "SHA3D_viewer": positron.sha3d.viewer,
     }
 
     subparsers = parser.add_subparsers(title='Choose a module')
