@@ -9,8 +9,6 @@ import sys
 import numpy as np
 import argparse
 
-import scipy.ndimage
-
 import threading
 
 import matplotlib.pylab as plt
@@ -27,7 +25,7 @@ from positron.base import get_spectral_indices, spectra_to_grid, dft, idft
 from positron.base.grid import load_mrc, save_mrc
 from positron.base.torch_utils import pca_dim_reduction
 from positron.sha3d.summary import Summary
-from positron.sha3d.utils import setup_device
+from positron.sha3d.train_utils import setup_device
 
 from matplotlib import backend_bases
 backend_bases.NavigationToolbar2.toolitems = (
@@ -169,9 +167,12 @@ def main(args):
     coord = np.stack([x, y], 1)
 
     coord_ = np.unique(coord, axis=0)
+    mask = np.zeros(coord_.shape[0], dtype=bool)
+    mask[:min(10000, len(x) - 1)] = True
+    np.random.shuffle(mask)
 
-    x = coord_[:min(10000, len(x) - 1), 0]
-    y = coord_[:min(10000, len(y) - 1), 1]
+    x = coord_[mask, 0]
+    y = coord_[mask, 1]
     xy = np.vstack([x, y])
 
     k = gaussian_kde(xy)
@@ -324,7 +325,7 @@ def main(args):
 
     @torch.no_grad()
     def update_bfactor(bfac):
-        global volumes, summary, spectral_indices, ref_basis_df, device
+        global volumes, summary, spectral_indices, ref_basis_df, device, bfactor
 
         idx = torch.linspace(0, 2, ft_shape[-1] * 2, device=device)
         res2 = torch.square(idx / voxel_size)

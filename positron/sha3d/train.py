@@ -23,7 +23,7 @@ from positron.sha3d.train_arguments import append_train_arguments
 from positron.base.torch_utils import make_series_line_fig
 from positron.sha3d.distributed_processing import DistributedProcessing
 from positron.sha3d.tensorboard_utils import TensorboardSummary
-from positron.sha3d.utils import *
+from positron.sha3d.train_utils import *
 from positron.base import load_mrc
 from positron.base.spectral import fourier_shift_2d, spectral_index_from_resolution
 from positron.base.io_logger import IOLogger

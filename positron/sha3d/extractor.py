@@ -6,7 +6,7 @@ import numpy as np
 
 from positron.base import save_mrc
 from positron.sha3d.summary import Summary
-from positron.sha3d.utils import setup_device
+from positron.sha3d.train_utils import setup_device
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extracts the weights of a decoder layer and prints them as MRC files.")

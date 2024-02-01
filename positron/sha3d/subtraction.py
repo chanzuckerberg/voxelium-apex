@@ -18,7 +18,7 @@ from positron.sha3d.cache import Cache
 
 from positron.base.explicit_grid_utils import size_to_maxr
 from .mask_applicator import apply_solvent_mask
-from .utils import smoothen_spectra, zero_fill_number
+from .train_utils import smoothen_spectra, zero_fill_number
 
 
 class SubtractionHelper:

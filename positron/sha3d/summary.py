@@ -17,7 +17,7 @@ from positron.base import dt_desymmetrize, idft, rescale_fourier, smooth_spheric
 from positron.sha3d.cache import Cache
 from positron.base.explicit_grid_utils import size_to_maxr, maxr_to_size
 from positron.sha3d.hidden_variable_container import HiddenVariableContainer
-from positron.sha3d.utils import load_modules_from_logdir, save_modules_to_logdir, load_module
+from positron.sha3d.train_utils import load_modules_from_logdir, save_modules_to_logdir, load_module
 from positron.sha3d.model_container import ModelContainer
 
 

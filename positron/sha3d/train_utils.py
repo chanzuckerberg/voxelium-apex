@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Test module for a training VAE
+Utility module for training
 """
 
 from glob import glob
@@ -187,44 +187,6 @@ def plot_fscs(output_file, **fscs):
     main_ax.set_ylabel("FSC")
     plt.plot()
     plt.savefig(output_file)
-
-
-# class SpectralStandardMapping(torch.nn.Module):
-#     def __init__(self, image_size):
-#         super().__init__()
-#         self.image_size = image_size
-#         self.std_spectra = torch.nn.Parameter(torch.zeros(image_size // 2 + 1))
-#         self.std_grid = torch.nn.Parameter(torch.zeros(image_size, image_size))
-#
-#     def forward(self, input):
-#
-#
-#     def track(self, input):
-#         with torch.no_grad():
-#             s_idx = Cache.get_spectral_indices(
-#                 (self.image_size + 1, self.image_size + 1),
-#                 max_r=size_to_maxr(self.image_size),
-#                 device=input.device
-#             )[:, self.image_size // 2:]
-#
-#             if torch.is_complex(input):
-#                 input = torch.view_as_real(input)
-#
-#             power = torch.mean(torch.sum(torch.square(input), -1), 0)
-#             power = grid_spectral_average_torch(power, s_idx)
-#             power = power[:, :-1]
-#             power[:, -1] = power[:, -2]
-#
-#             stds = torch.sqrt(power)
-#
-#             g_idx = Cache.get_spectral_indices(
-#                 (self.image_size, self.image_size),
-#                 max_r=size_to_maxr(self.image_size),
-#                 device=input.device
-#             )
-#             g_idx = dt_symmetrize(g_idx, dim=2)[..., self.image_size // 2:]
-#             self.std_grid.data = spectra_to_grid_torch(spectra=stds, indices=g_idx)
-#             self.std_spectra = stds
 
 
 def smoothen_spectra(spec, kernel=5):

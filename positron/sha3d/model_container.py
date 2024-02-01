@@ -10,7 +10,7 @@ from typing import List, TypeVar, Dict, Union
 
 from positron.base import get_activation_function_by_name
 from .retention_classifier import RetentionClassifier
-from .utils import parse_bounds_str
+from .train_utils import parse_bounds_str
 
 from ..base import ModelContainer, spectral_index_from_resolution
 from ..base.explicit_grid_utils import size_to_maxr

@@ -13,7 +13,7 @@ from positron.base import grid_spectral_average
 from positron.sha3d.cache import Cache
 
 from positron.base.explicit_grid_utils import size_to_maxr
-from .utils import smoothen_spectra
+from .train_utils import smoothen_spectra
 
 Tensor = TypeVar('torch.tensor')
 

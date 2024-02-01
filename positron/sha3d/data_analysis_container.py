@@ -16,7 +16,7 @@ from positron.base.single_particle_dataset import SingleParticleDataset
 from positron import relion
 from positron.sha3d.distributed_processing import DistributedProcessing
 from positron.sha3d.hidden_variable_container import HiddenVariableContainer, HiddenVariableModule
-from positron.sha3d.utils import get_np_dtype, load_modules_from_logdir, save_modules_to_logdir
+from positron.sha3d.train_utils import get_np_dtype, load_modules_from_logdir, save_modules_to_logdir
 from positron.sha3d.model_container import ModelContainer
 
 
