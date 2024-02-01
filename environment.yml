@@ -1,0 +1,24 @@
+name: positron
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - setuptools
+  - pip
+  - cudatoolkit==12.1.*
+  - eigen
+  - loguru
+  - vtk=9.*
+  - pip:
+      - matplotlib
+      - mrcfile
+      - numpy
+      - scikit-learn
+      - scipy
+      - tensorboard
+      - torch==2.2.*
+      - torchvision
+      - tqdm
+      - starfile
+      - umap-learn
+      - imageio
