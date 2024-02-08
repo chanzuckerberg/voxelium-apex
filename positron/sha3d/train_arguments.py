@@ -82,9 +82,27 @@ def append_train_arguments(parser):
     )
 
     parser.add_argument(
-        '--contrastive_weight',
-        help='Contrastive learning weight',
+        '--z_contrastive_weight',
+        help='Contrastive learning weight for Z',
+        type=range_limited_float_type(0), default=0.1
+    )
+
+    parser.add_argument(
+        '--z_contrastive_margin',
+        help='Contrastive learning margin for Z',
+        type=range_limited_float_type(0), default=0
+    )
+
+    parser.add_argument(
+        '--s_contrastive_weight',
+        help='Contrastive learning weight for S',
         type=range_limited_float_type(0), default=1.0
+    )
+
+    parser.add_argument(
+        '--s_contrastive_margin',
+        help='Contrastive learning margin for S',
+        type=range_limited_float_type(0), default=0
     )
 
     parser.add_argument(
@@ -97,12 +115,6 @@ def append_train_arguments(parser):
         '--aug_noise',
         help='Contrastive learning augmentation noise',
         type=range_limited_float_type(0), default=0.01
-    )
-
-    parser.add_argument(
-        '--contrastive_margin',
-        help='Contrastive learning margin',
-        type=range_limited_float_type(0), default=.1
     )
 
     parser.add_argument(

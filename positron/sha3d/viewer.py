@@ -116,7 +116,7 @@ class Viewer:
 
         coord = np.unique(self.coord, axis=0)
         mask = np.zeros(coord.shape[0], dtype=bool)
-        mask[:min(2000, len(x) - 1)] = True
+        mask[:min(10000, len(x) - 1)] = True
         np.random.shuffle(mask)
 
         x = coord[mask, 0]

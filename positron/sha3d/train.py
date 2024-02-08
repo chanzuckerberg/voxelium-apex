@@ -315,7 +315,7 @@ def train(rank, args, ddp_args):
                 if not finalize:
                     feature_extractor.track_s0(s[:, 0])
 
-                    features_ = features + torch.randn_like(features) * 0.01
+                    features_ = features + torch.randn_like(features) * args.aug_noise
                     z_aug, s_aug = rec.encode(features_, dropout=dropout_rate)
 
                     if do_tomo:
@@ -323,19 +323,19 @@ def train(rank, args, ddp_args):
                         s_aug = s_aug[particle_groups]
 
                     contrastive_loss = 0
-                    if args.contrastive_weight > 0:
-                        contrastive_loss = (
-                            # batch_triplet_loss(
-                            #     anchor=z[train_mask] / (z_std_ema + 1e-12),
-                            #     target=z_aug[train_mask] / (z_std_ema + 1e-12),
-                            #     margin=args.contrastive_margin
-                            # )
-                            batch_triplet_loss(
+                    if args.z_contrastive_weight > 0:
+                        contrastive_loss += batch_triplet_loss(
+                                anchor=z[train_mask] / (z_std_ema + 1e-12),
+                                target=z_aug[train_mask] / (z_std_ema + 1e-12),
+                                margin=args.z_contrastive_margin
+                            ) * args.z_contrastive_weight
+
+                    if args.s_contrastive_weight > 0:
+                        contrastive_loss += batch_triplet_loss(
                                 anchor=s[train_mask] / (s_std_ema + 1e-12),
                                 target=s_aug[train_mask] / (s_std_ema + 1e-12),
-                                margin=args.contrastive_margin
-                            )
-                        )
+                                margin=args.s_contrastive_margin
+                            ) * args.s_contrastive_weight
 
                     if log_stats:
                         summary.add_scalar(f"Z/std", torch.std(z))
@@ -373,7 +373,7 @@ def train(rank, args, ddp_args):
                     if step > 0:
                         total_loss = (
                                 weighted_mse +
-                                contrastive_loss * args.contrastive_weight
+                                contrastive_loss
                         )
                         total_loss.backward()
 
