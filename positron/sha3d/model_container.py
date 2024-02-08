@@ -141,7 +141,7 @@ class ModelContainer(nn.Module):
         #     z2 = torch.nn.functional.dropout(z[:, 2:], 0.5)
         #     z_ = torch.cat([z1, z2], 1)
 
-        s = self.s_encoder(z_)
+        s = self.s_encoder(z_, dropout=dropout)
         return z, s
 
     def init_optimizers(self):

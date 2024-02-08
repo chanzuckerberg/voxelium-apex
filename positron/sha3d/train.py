@@ -290,8 +290,8 @@ def train(rank, args, ddp_args):
                     dropout_rate = 0.
                     features_ = features
                 else:
-                    features_ = features + torch.randn_like(features) * 0.01
-                    dropout_rate = 0.05
+                    features_ = features + torch.randn_like(features) * args.aug_noies
+                    dropout_rate = args.aug_dropout
 
                 z, s = rec.encode(features_, dropout=dropout_rate)
 
@@ -316,17 +316,23 @@ def train(rank, args, ddp_args):
                     feature_extractor.track_s0(s[:, 0])
 
                     features_ = features + torch.randn_like(features) * 0.01
-                    z_aug, _ = rec.encode(features_, dropout=dropout_rate)
+                    z_aug, s_aug = rec.encode(features_, dropout=dropout_rate)
 
                     if do_tomo:
                         z_aug = z_aug[particle_groups]
+                        s_aug = s_aug[particle_groups]
 
                     contrastive_loss = 0
                     if args.contrastive_weight > 0:
                         contrastive_loss = (
+                            # batch_triplet_loss(
+                            #     anchor=z[train_mask] / (z_std_ema + 1e-12),
+                            #     target=z_aug[train_mask] / (z_std_ema + 1e-12),
+                            #     margin=args.contrastive_margin
+                            # )
                             batch_triplet_loss(
-                                anchor=z[train_mask] / (z_std_ema + 1e-12),
-                                target=z_aug[train_mask] / (z_std_ema + 1e-12),
+                                anchor=s[train_mask] / (s_std_ema + 1e-12),
+                                target=s_aug[train_mask] / (s_std_ema + 1e-12),
                                 margin=args.contrastive_margin
                             )
                         )

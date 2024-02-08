@@ -88,6 +88,18 @@ def append_train_arguments(parser):
     )
 
     parser.add_argument(
+        '--aug_dropout',
+        help='Contrastive learning augmentation dropout',
+        type=range_limited_float_type(0), default=0
+    )
+
+    parser.add_argument(
+        '--aug_noise',
+        help='Contrastive learning augmentation noise',
+        type=range_limited_float_type(0), default=0.01
+    )
+
+    parser.add_argument(
         '--contrastive_margin',
         help='Contrastive learning margin',
         type=range_limited_float_type(0), default=.1
@@ -96,19 +108,19 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--feature_bandpass',
         help='Feature extraction band filters (in Ångströms). Comma separated.',
-        type=str, default="30-0"
+        type=str, default="30-0,30-5,30-10"
     )
 
     parser.add_argument(
         '--z_encoder_dims',
         help='Comma separated integers used for Z-encoder hidden layer dimensions.',
-        type=str, default="64,64,32"
+        type=str, default="128,128,64,32"
     )
 
     parser.add_argument(
         '--s_encoder_dims',
         help='Comma separated integers used for S-encoder hidden layer dimensions.',
-        type=str, default="32,64,64,64"
+        type=str, default="64,128,128,64"
     )
 
     parser.add_argument('--do_sigma_weighting', action='store_true')
