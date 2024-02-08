@@ -290,7 +290,7 @@ def train(rank, args, ddp_args):
                     dropout_rate = 0.
                     features_ = features
                 else:
-                    features_ = features + torch.randn_like(features) * args.aug_noies
+                    features_ = features + torch.randn_like(features) * args.aug_noise
                     dropout_rate = args.aug_dropout
 
                 z, s = rec.encode(features_, dropout=dropout_rate)
