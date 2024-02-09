@@ -63,9 +63,11 @@ class Viewer:
 
         # SPECTRAL MODULATION -------------------------------------------------------------------------------
 
+        self.mask = summary.basis.sum(dim=0) != 0
+
         self.ft_shape = list(summary.basis.shape[1:])
         self.ft_shape[-1] = self.ft_shape[-1] // 2 + 1
-        self.spectral_indices = get_spectral_indices(self.ft_shape, device=self.device)
+        self.spectral_indices = get_spectral_indices(self.ft_shape, device=self.device, centered=False)
 
         self.voxel_size = 1
         if "voxel_size" in summary.metadata:
@@ -73,7 +75,7 @@ class Viewer:
 
         self.ref_basis_df = torch.zeros([summary.basis.shape[0]] + self.ft_shape, device="cpu", dtype=torch.complex64)
         for i in range(summary.basis.shape[0]):
-            self.ref_basis_df[i] = dft(summary.basis[i].to("cpu"), real_in=True)
+            self.ref_basis_df[i] = dft(summary.basis[i].to("cpu"), real_in=True, center=False)
 
         # LATENT VISUALIZATION -------------------------------------------------------------------------------
 
@@ -303,7 +305,8 @@ class Viewer:
 
         for i in range(self.summary.basis.shape[0]):
             df = self.ref_basis_df[i].to(self.device) * grid
-            self.summary.basis[i] = idft(df, real_in=True)
+            base = idft(df, real_in=True, centered=False)
+            self.summary.basis[i] = base * self.mask
 
         if len(self.volumes) > 0:
             volumes = []

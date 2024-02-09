@@ -82,6 +82,18 @@ def append_train_arguments(parser):
     )
 
     parser.add_argument(
+        '--lr_encoder',
+        help='Learning rate of the encoder',
+        type=range_limited_float_type(0), default=1e-3
+    )
+
+    parser.add_argument(
+        '--wd_encoder',
+        help='Weight decay of the encoder',
+        type=range_limited_float_type(0), default=1e-2
+    )
+
+    parser.add_argument(
         '--z_contrastive_weight',
         help='Contrastive learning weight for Z',
         type=range_limited_float_type(0), default=0.1

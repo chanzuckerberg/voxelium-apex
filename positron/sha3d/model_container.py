@@ -59,7 +59,9 @@ class ModelContainer(nn.Module):
             z_encoder_dims=None,
             s_encoder_dims=None,
             train_epoch=0,
-            train_step=0
+            train_step=0,
+            lr=1e-3,
+            wd=1e-2
     ) -> None:
         super().__init__()
         
@@ -72,6 +74,9 @@ class ModelContainer(nn.Module):
 
         self.train_epoch = train_epoch
         self.train_step = train_step
+
+        self.lr = lr
+        self.wd = wd
 
         self.max_r = size_to_maxr(image_size)
         self.grid3d_size = image_size + 1 - image_size % 2
@@ -152,8 +157,8 @@ class ModelContainer(nn.Module):
         self.decoder_opt = BaseOptimizer(params)
 
         params = [
-            {"params": self.z_encoder.parameters(), "lr": 1e-3, "weight_decay": 1e-2},
-            {"params": self.s_encoder.parameters(), "lr": 1e-3, "weight_decay": 1e-2},
+            {"params": self.z_encoder.parameters(), "lr": self.lr, "weight_decay": self.wd},
+            {"params": self.s_encoder.parameters(), "lr": self.lr, "weight_decay": self.wd},
         ]
         self.adam_opt = torch.optim.AdamW(params)
 

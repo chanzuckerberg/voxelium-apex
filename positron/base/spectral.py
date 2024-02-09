@@ -498,9 +498,9 @@ def get_spectral_indices(shape: Union[Tuple[int, int], Tuple[int, int, int]], ce
             indices = torch.fft.ifftshift(indices)
         else:
             if dim_2:
-                indices = torch.fft.ifftshift(indices, axes=0)
+                indices = torch.fft.ifftshift(indices, dim=0)
             else:
-                indices = torch.fft.ifftshift(indices, axes=(0, 1))
+                indices = torch.fft.ifftshift(indices, dim=(0, 1))
     return indices
 
 
