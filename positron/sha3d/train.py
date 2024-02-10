@@ -325,15 +325,15 @@ def train(rank, args, ddp_args):
                     contrastive_loss = 0
                     if args.z_contrastive_weight > 0:
                         contrastive_loss += batch_triplet_loss(
-                                anchor=z[train_mask] / (z_std_ema + 1e-12),
-                                target=z_aug[train_mask] / (z_std_ema + 1e-12),
+                                anchor=z[train_mask] / (z[train_mask].std() + 1e-12),
+                                target=z_aug[train_mask] / (z_aug[train_mask].std() + 1e-12),
                                 margin=args.z_contrastive_margin
                             ) * args.z_contrastive_weight
 
                     if args.s_contrastive_weight > 0:
                         contrastive_loss += batch_triplet_loss(
-                                anchor=s[train_mask] / (s_std_ema + 1e-12),
-                                target=s_aug[train_mask] / (s_std_ema + 1e-12),
+                                anchor=s[train_mask] / (s[train_mask].std() + 1e-12),
+                                target=s_aug[train_mask] / (s_aug[train_mask].std() + 1e-12),
                                 margin=args.s_contrastive_margin
                             ) * args.s_contrastive_weight
 
@@ -373,7 +373,8 @@ def train(rank, args, ddp_args):
                     if step > 0:
                         total_loss = (
                                 weighted_mse +
-                                contrastive_loss
+                                contrastive_loss +
+                                z[train_mask].square().mean() * 0.001
                         )
                         total_loss.backward()
 
