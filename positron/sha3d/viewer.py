@@ -20,8 +20,8 @@ import multiprocessing as mp
 
 from matplotlib.widgets import PolygonSelector
 from matplotlib.path import Path
-from positron.base import get_spectral_indices, spectra_to_grid, dft, idft
 
+from positron.base import get_spectral_indices, spectra_to_grid, dft, idft
 from positron.base.grid import load_mrc, save_mrc
 from positron.base.torch_utils import pca_dim_reduction
 from positron.sha3d.summary import Summary
