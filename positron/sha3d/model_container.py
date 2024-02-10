@@ -162,6 +162,10 @@ class ModelContainer(nn.Module):
         ]
         self.adam_opt = torch.optim.AdamW(params)
 
+    def clip_grad(self, clip):
+        torch.nn.utils.clip_grad_norm_(self.z_encoder.parameters(), clip)
+        torch.nn.utils.clip_grad_norm_(self.s_encoder.parameters(), clip)
+
     def zero_grad(self, set_to_none: bool = True) -> None:
         self.adam_opt.zero_grad(set_to_none)
         self.decoder_opt.zero_grad(set_to_none)

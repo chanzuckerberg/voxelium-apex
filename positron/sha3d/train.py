@@ -374,7 +374,7 @@ def train(rank, args, ddp_args):
                         total_loss = (
                                 weighted_mse +
                                 contrastive_loss +
-                                z[train_mask].square().mean() * 0.001
+                                z[train_mask].square().mean() * args.z_std_weight
                         )
                         total_loss.backward()
 
@@ -396,6 +396,8 @@ def train(rank, args, ddp_args):
                         _, data_ctf_spectra, avg_ctf2 = hvc.get_data_stats(0)
 
                         solvent_mask_applicator(data_ctf_spectra)
+
+                        rec.clip_grad(args.grad_clip)
                         rec.adam_opt.step()
 
                         rec.zero_grad()
