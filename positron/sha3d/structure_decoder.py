@@ -7,7 +7,6 @@ Model for the Structure Decoder
 import torch
 from positron.base.explicit_grid_utils import make_grid2d, make_grid3d, size_to_maxr, maxr_to_size
 from ..base import spectra_to_grid
-from positron.torch_extensions.reconstruction_layer_3d import ReconstructionLayer3D
 
 
 class StructureDecoder(torch.nn.Module):
@@ -19,6 +18,7 @@ class StructureDecoder(torch.nn.Module):
 
         self.caches = {}
 
+        from positron.torch_extensions.reconstruction_layer_3d import ReconstructionLayer3D
         self.projector = ReconstructionLayer3D(
             size=grid3d_size,
             input_size=s_size,
