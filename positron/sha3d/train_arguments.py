@@ -124,8 +124,8 @@ def append_train_arguments(parser):
     )
 
     parser.add_argument(
-        '--z_std_weight',
-        help='Z standard deviation limit',
+        '--kl_weight',
+        help='KL divergence weight',
         type=range_limited_float_type(0), default=1e-5
     )
 

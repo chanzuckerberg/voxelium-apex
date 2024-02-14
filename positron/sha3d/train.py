@@ -210,9 +210,6 @@ def train(rank, args, ddp_args):
 
     do_tomo = args.tomo
 
-    s_std_ema = None
-    z_std_ema = None
-
     try:
         for epoch in np.arange(rec.train_epoch, max_epochs):
             dt = time.time()
@@ -286,28 +283,17 @@ def train(rank, args, ddp_args):
                     f = features
                 hvc.set_metadata('feature', particle_idx, f)
 
-                if finalize:
-                    dropout_rate = 0.
-                    features_ = features
-                else:
-                    features_ = features + torch.randn_like(features) * args.aug_noise
-                    dropout_rate = args.aug_dropout
-
-                z, s = rec.encode(features_, dropout=dropout_rate)
+                z, s, mu, log_var = rec.encode(features)
 
                 if do_tomo:
                     z = z[particle_groups]
                     s = s[particle_groups]
+                    mu = mu[particle_groups]
+                    log_var = log_var[particle_groups]
 
-                hvc.set_metadata('z', particle_idx, z)
+                hvc.set_metadata('log_var', particle_idx, log_var)
+                hvc.set_metadata('z', particle_idx, mu)
                 hvc.set_metadata('s', particle_idx, s)
-
-                if s_std_ema is None:
-                    s_std_ema = s.std().detach()
-                    z_std_ema = z.std().detach()
-                else:
-                    s_std_ema = s_std_ema * 0.9 + s.std().detach() * 0.1
-                    z_std_ema = z_std_ema * 0.9 + z.std().detach() * 0.1
 
                 if finalize and subtract_during_finalize:
                     subtraction_helper(s, sample, hv)
@@ -316,7 +302,7 @@ def train(rank, args, ddp_args):
                     feature_extractor.track_s0(s[:, 0])
 
                     features_ = features + torch.randn_like(features) * args.aug_noise
-                    z_aug, s_aug = rec.encode(features_, dropout=dropout_rate)
+                    z_aug, s_aug, _, _ = rec.encode(features_, dropout=args.aug_dropout)
 
                     if do_tomo:
                         z_aug = z_aug[particle_groups]
@@ -336,6 +322,8 @@ def train(rank, args, ddp_args):
                                 target=s_aug[train_mask] / (s_aug[train_mask].std() + 1e-12),
                                 margin=args.s_contrastive_margin
                             ) * args.s_contrastive_weight
+
+                    kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var[train_mask] - mu[train_mask] ** 2 - log_var[train_mask].exp(), dim=1), dim=0)
 
                     if log_stats:
                         summary.add_scalar(f"Z/std", torch.std(z))
@@ -374,7 +362,7 @@ def train(rank, args, ddp_args):
                         total_loss = (
                                 weighted_mse +
                                 contrastive_loss +
-                                z[train_mask].square().mean() * args.z_std_weight
+                                kld_loss * args.z_std_weight
                         )
                         total_loss.backward()
 

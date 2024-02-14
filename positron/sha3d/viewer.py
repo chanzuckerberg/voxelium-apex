@@ -309,12 +309,12 @@ class Viewer:
             self.summary.basis[i] = base * self.mask
 
         if len(self.volumes) > 0:
-            volumes = []
+            self.volumes = []
             for i in range(len(self.selected_ids)):
                 idx = self.selected_ids[i]
                 vol = self.get_volume(self.structure_factors[idx])
-                volumes.append(vol)
-            self.volume_render_input_queue.put(volumes)
+                self.volumes.append(vol)
+            self.volume_render_input_queue.put(self.volumes)
         else:
             self.set_default_volume()
 

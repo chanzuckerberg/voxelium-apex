@@ -103,7 +103,7 @@ class ModelContainer(nn.Module):
         self.z_encoder = Encoder(
             input_dim=feature_size,
             hidden_dims=[64, 64, 32] if z_encoder_dims is None else z_encoder_dims,
-            output_dim=z_size,
+            output_dim=z_size * 2,
             activation_fn='elu'
         )
 
@@ -136,18 +136,21 @@ class ModelContainer(nn.Module):
         circular_mask_radius = self.circular_mask_radius_ang / self.voxel_size
         circular_mask_thickness = self.circular_mask_thickness_ang / self.voxel_size
         return circular_mask_radius, circular_mask_thickness
-    
+
+    def reparameterize(self, mu, logvar):
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return eps * std + mu
+
     def encode(self, x, dropout=0):
-        z = self.z_encoder(x, dropout=dropout)
+        out = self.z_encoder(x, dropout=dropout)
+        mu = out[:, :out.size(1) // 2]
+        log_var = out[:, out.size(1) // 2:]
 
-        z_ = z
-        # if dropout > 0. and z.size(1) > 2:
-        #     z1 = z[:, :2]
-        #     z2 = torch.nn.functional.dropout(z[:, 2:], 0.5)
-        #     z_ = torch.cat([z1, z2], 1)
+        z = self.reparameterize(mu, log_var)
 
-        s = self.s_encoder(z_, dropout=dropout)
-        return z, s
+        s = self.s_encoder(z, dropout=dropout)
+        return z, s, mu, log_var
 
     def init_optimizers(self):
         _, spectral_idx, _ = self.decoder._load_cache(self.decoder.max_r, True)
