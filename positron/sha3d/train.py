@@ -362,7 +362,7 @@ def train(rank, args, ddp_args):
                         total_loss = (
                                 weighted_mse +
                                 contrastive_loss +
-                                kld_loss * args.z_std_weight
+                                kld_loss * args.kl_weight
                         )
                         total_loss.backward()
 
