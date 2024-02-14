@@ -84,7 +84,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--lr_encoder',
         help='Learning rate of the encoder',
-        type=range_limited_float_type(0), default=1e-3
+        type=range_limited_float_type(0), default=0.0001
     )
 
     parser.add_argument(
@@ -150,13 +150,13 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--z_encoder_dims',
         help='Comma separated integers used for Z-encoder hidden layer dimensions.',
-        type=str, default="128,128,64,32"
+        type=str, default="128,128,128"
     )
 
     parser.add_argument(
         '--s_encoder_dims',
         help='Comma separated integers used for S-encoder hidden layer dimensions.',
-        type=str, default="64,128,128,64"
+        type=str, default="128,128,128,128"
     )
 
     parser.add_argument('--do_sigma_weighting', action='store_true')

@@ -19,29 +19,36 @@ from .structure_decoder import StructureDecoder
 
 
 class Encoder(nn.Module):
-    def __init__(self, input_dim, hidden_dims, output_dim, activation_fn) -> None:
+    def __init__(self, input_dim, hidden_dims, output_dim, activation_fn, batch_norm=False) -> None:
         super().__init__()
         self.activation_fn = get_activation_function_by_name(activation_fn)
         self.input_layer = nn.Linear(input_dim, hidden_dims[0])
+        self.batch_norm = batch_norm
+        self.input_batchnorm = nn.BatchNorm1d(hidden_dims[0]) if batch_norm else None
 
         self.hidden_layers = nn.ModuleList()
+        self.hidden_batchnorms = nn.ModuleList()
         pre_dim = hidden_dims[0]
         for dim in hidden_dims:
             self.hidden_layers.append(nn.Linear(pre_dim, dim))
+            self.hidden_batchnorms.append(nn.BatchNorm1d(dim) if batch_norm else None)
             pre_dim = dim
 
         self.output_layer = nn.Linear(pre_dim, output_dim)
 
     def forward(self, x: torch.tensor, dropout=0) -> torch.tensor:
-        y = self.activation_fn(self.input_layer(x))
+        y = self.input_layer(x)
+        if self.batch_norm:
+            y = self.input_batchnorm(y)
+        y = self.activation_fn(y)
 
-        for hidden_layer in self.hidden_layers:
+        for hidden_layer, batchnorm in zip(self.hidden_layers, self.hidden_batchnorms):
+            y = hidden_layer(y)
+            if self.batch_norm:
+                y = batchnorm(y)
+            y = self.activation_fn(y)
             if dropout > 0:
                 y = nn.functional.dropout(y, dropout)
-            y = self.activation_fn(hidden_layer(y))
-
-        if dropout > 0:
-            y = nn.functional.dropout(y, dropout)
 
         return self.output_layer(y)
 
@@ -102,16 +109,16 @@ class ModelContainer(nn.Module):
 
         self.z_encoder = Encoder(
             input_dim=feature_size,
-            hidden_dims=[64, 64, 32] if z_encoder_dims is None else z_encoder_dims,
+            hidden_dims=[128, 128, 128] if z_encoder_dims is None else z_encoder_dims,
             output_dim=z_size * 2,
-            activation_fn='elu'
+            activation_fn='relu'
         )
 
         self.s_encoder = Encoder(
             input_dim=z_size,
-            hidden_dims=[32, 64, 64, 64] if z_encoder_dims is None else z_encoder_dims,
+            hidden_dims=[128, 128, 128, 128] if z_encoder_dims is None else z_encoder_dims,
             output_dim=s_size,
-            activation_fn='elu'
+            activation_fn='relu'
         )
 
         self.feature_size = feature_size

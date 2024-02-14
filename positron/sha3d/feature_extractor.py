@@ -206,6 +206,7 @@ class FeatureExtractor:
 
     def standardize(self, features):
         return (features - self.features_mean) / (self.features_std + self.eps)
+        # return (features - features.mean()) / (features.std() + self.eps)
 
     def get_summary(self) -> Dict:
         return {
