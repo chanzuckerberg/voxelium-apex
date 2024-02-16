@@ -22,7 +22,7 @@ from matplotlib.widgets import PolygonSelector
 from matplotlib.path import Path
 
 from positron.base import get_spectral_indices, spectra_to_grid, dft, idft
-from positron.base.grid import load_mrc, save_mrc
+from positron.base.grid import load_mrc, save_mrc, fast_gaussian_filter
 from positron.base.torch_utils import pca_dim_reduction
 from positron.sha3d.summary import Summary
 from positron.sha3d.train_utils import setup_device
@@ -117,26 +117,32 @@ class Viewer:
         self.coord = np.stack([x, y], 1)
 
         coord = np.unique(self.coord, axis=0)
-        mask = np.zeros(coord.shape[0], dtype=bool)
-        mask[:min(10000, len(x) - 1)] = True
-        np.random.shuffle(mask)
 
-        x = coord[mask, 0]
-        y = coord[mask, 1]
-        xy = np.vstack([x, y])
+        size = 500
+        lim = 3
+        x = coord[:, 0] / (2 * lim) + 0.5
+        y = coord[:, 1] / (2 * lim) + 0.5
+        x *= size
+        y *= size
+        mask = (0 < x) & (x < size-1) & (0 < y) & (y < size-1)
+        x = x[mask]
+        y = y[mask]
 
-        k = gaussian_kde(xy)
-        xi, yi = np.mgrid[-3:3:100j, -3:3:100j]
-        zi = k(np.vstack([xi.flatten(), yi.flatten()]))
+        z = np.zeros([size, size])
+        np.add.at(z, (np.round(x).astype(int), np.round(y).astype(int)), 1)
 
-        self.ax_hm.contourf(xi, yi, zi.reshape(xi.shape), levels=100, alpha=1, cmap=cm)
+        # TODO Just do it all with torch
+        z = torch.from_numpy(z).float()
+        z = fast_gaussian_filter(z.view(1, 1, z.size(0), z.size(1)), kernel_sigma=8)[0, 0]
+        z = z.numpy()
 
-        z = k(xy)
-        z_ = (1 - z / z.max()) * 0.1
-        self.ax_hm.scatter(x, y, c="black", s=10, edgecolors='none', marker='o', alpha=z_)
+        ls = np.linspace(-lim, lim, size)
+        xi, yi = np.meshgrid(ls, ls, indexing='ij')
 
-        self.ax_hm.set_xlim([-3, 3])
-        self.ax_hm.set_ylim([-3, 3])
+        self.ax_hm.contourf(xi, yi, z, levels=100, alpha=1, cmap=cm)
+
+        self.ax_hm.set_xlim([-lim, lim])
+        self.ax_hm.set_ylim([-lim, lim])
 
         # VOLUME RENDERER QUEUES -----------------------------------------------------------------------
 

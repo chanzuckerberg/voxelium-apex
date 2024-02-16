@@ -28,6 +28,7 @@ from positron.base import load_mrc
 from positron.base.spectral import fourier_shift_2d, spectral_index_from_resolution
 from positron.base.io_logger import IOLogger
 from positron.sha3d.data_analysis_container import DatasetAnalysisContainer
+from positron.sha3d.retention_classifier import RetentionClassifier
 
 
 def get_lr(step, args):
@@ -210,6 +211,8 @@ def train(rank, args, ddp_args):
 
     do_tomo = args.tomo
 
+    s_retention = RetentionClassifier(rec.s_size).to(device)
+
     try:
         for epoch in np.arange(rec.train_epoch, max_epochs):
             dt = time.time()
@@ -273,7 +276,10 @@ def train(rank, args, ddp_args):
                     hv=hv, y=y_ft, wy=snr, wx=x_noise_pow, accumulate_stats=not finalize, s0=s0, groups=particle_groups)
 
                 if log_stats:
-                    summary.add_scalars(feature_extractor.get_summary())
+                    summary.add_scalar("Features/mean", features.mean())
+                    summary.add_scalar("Features/std", features.std())
+
+                features = rec.normalize_features(features)
 
                 invert_timing = time.time() - tt
 
@@ -283,7 +289,7 @@ def train(rank, args, ddp_args):
                     f = features
                 hvc.set_metadata('feature', particle_idx, f)
 
-                z, s, mu, log_var = rec.encode(features)
+                z, s, mu, log_var = rec.vae(features, noise=0 if finalize else args.aug_noise)
 
                 if do_tomo:
                     z = z[particle_groups]
@@ -301,8 +307,11 @@ def train(rank, args, ddp_args):
                 if not finalize:
                     feature_extractor.track_s0(s[:, 0])
 
-                    features_ = features + torch.randn_like(features) * args.aug_noise
-                    z_aug, s_aug, _, _ = rec.encode(features_, dropout=args.aug_dropout)
+                    z_aug, s_aug, _, _ = rec.vae(features, noise=args.aug_noise)
+
+                    s_retention(logit=s, labels=train_mask, make_summary=log_stats)
+                    if log_stats:
+                        summary.add_scalars(s_retention.get_summary())
 
                     if do_tomo:
                         z_aug = z_aug[particle_groups]
@@ -311,27 +320,27 @@ def train(rank, args, ddp_args):
                     contrastive_loss = 0
                     if args.z_contrastive_weight > 0:
                         contrastive_loss += batch_triplet_loss(
-                                anchor=z[train_mask] / (z[train_mask].std() + 1e-12),
-                                target=z_aug[train_mask] / (z_aug[train_mask].std() + 1e-12),
+                                anchor=z[train_mask],
+                                target=z_aug[train_mask],
                                 margin=args.z_contrastive_margin
                             ) * args.z_contrastive_weight
 
                     if args.s_contrastive_weight > 0:
                         contrastive_loss += batch_triplet_loss(
-                                anchor=s[train_mask] / (s[train_mask].std() + 1e-12),
-                                target=s_aug[train_mask] / (s_aug[train_mask].std() + 1e-12),
+                                anchor=s[train_mask],
+                                target=s_aug[train_mask],
                                 margin=args.s_contrastive_margin
                             ) * args.s_contrastive_weight
 
                     kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var[train_mask] - mu[train_mask] ** 2 - log_var[train_mask].exp(), dim=1), dim=0)
 
                     if log_stats:
-                        summary.add_scalar(f"Z/std", torch.std(z))
-                        summary.add_scalar(f"Z/mean", torch.mean(z))
-                        summary.add_scalar(f"S/std", torch.std(s))
-                        summary.add_scalar(f"S/mean", torch.mean(s))
-                        summary.add_scalar(f"S0/std", torch.std(s[:, 0]))
-                        summary.add_scalar(f"S0/mean", torch.mean(s[:, 0]))
+                        summary.add_scalar(f"Z/std", z.std())
+                        summary.add_scalar(f"Z/mean", z.mean())
+                        summary.add_scalar(f"S/std", s.std())
+                        summary.add_scalar(f"S/mean", s.mean())
+                        summary.add_scalar(f"S0/std", s[:, 0].std())
+                        summary.add_scalar(f"S0/mean", s[:, 0].mean())
 
                     tt = time.time()
 

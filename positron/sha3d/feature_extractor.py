@@ -186,30 +186,7 @@ class FeatureExtractor:
             map_features.append(f)
 
         features = torch.cat(map_features, 1)
-
-        if accumulate_stats:
-            self.accumulate(features)
-
-        return self.standardize(features)
+        return features
 
     def track_s0(self, s0):
         self.s0 = self.s0 * 0.9 + s0.mean() * 0.1
-
-    def accumulate(self, features):
-        if self.features_mean is None:
-            self.features_mean = features.mean(0, keepdim=True)
-            self.features_std = features.std(0, keepdim=True)
-        else:
-            b = self.beta
-            self.features_mean = self.features_mean * b + features.mean(0, keepdim=True) * (1 - b)
-            self.features_std = self.features_std * b + features.std(0, keepdim=True) * (1 - b)
-
-    def standardize(self, features):
-        return (features - self.features_mean) / (self.features_std + self.eps)
-        # return (features - features.mean()) / (features.std() + self.eps)
-
-    def get_summary(self) -> Dict:
-        return {
-            "Features/mean": self.features_mean.mean(),
-            "Features/std": self.features_std.mean(),
-        }
