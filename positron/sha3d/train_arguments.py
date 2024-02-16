@@ -73,7 +73,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--lr',
         help='Learning rate of the structure decoder',
-        type=range_limited_float_type(0), default=0.01
+        type=range_limited_float_type(0), default=0.001
     )
     parser.add_argument(
         '--begin_lr',
@@ -84,7 +84,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--lr_encoder',
         help='Learning rate of the encoder',
-        type=range_limited_float_type(0), default=0.0001
+        type=range_limited_float_type(0), default=0.0004
     )
 
     parser.add_argument(

@@ -133,7 +133,7 @@ class Viewer:
 
         # TODO Just do it all with torch
         z = torch.from_numpy(z).float()
-        z = fast_gaussian_filter(z.view(1, 1, z.size(0), z.size(1)), kernel_sigma=8)[0, 0]
+        z = fast_gaussian_filter(z.view(1, 1, z.size(0), z.size(1)), kernel_sigma=3.5)[0, 0]
         z = z.numpy()
 
         ls = np.linspace(-lim, lim, size)
