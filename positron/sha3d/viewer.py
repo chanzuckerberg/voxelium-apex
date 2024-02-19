@@ -87,63 +87,6 @@ class Viewer:
         self.ax_hm.axis('off')
         plt.tight_layout()
 
-        # MAKE HEAT MAP -------------------------------------------------------------------------------------
-
-        from matplotlib.colors import LinearSegmentedColormap
-        from scipy.stats import gaussian_kde
-
-        cm_voltage = [
-            (1.000, 1.000, 1.000), (0.768, 0.881, 0.943), (0.522, 0.761, 0.959), (0.435, 0.607, 0.998),
-            (0.488, 0.421, 0.953), (0.515, 0.211, 0.817), (0.459, 0.054, 0.570), (0.309, 0.082, 0.301)
-        ]
-        cm_tropical = [
-            (1.000, 1.000, 1.000), (0.267, 0.987, 0.988), (0.154, 0.934, 0.722), (0.429, 0.843, 0.431),
-            (0.647, 0.719, 0.203), (0.772, 0.580, 0.031), (0.837, 0.429, 0.067), (0.850, 0.273, 0.195),
-            (0.808, 0.111, 0.354), (0.699, 0.022, 0.528), (0.565, 0.054, 0.646)
-        ]
-        n_bins = 100  # Use 100 bins for smooth transitions
-        self.marker_size = 0.05
-
-        # Create the colormap
-        cmap_name = 'custom_white_purple_blue'
-        cm = LinearSegmentedColormap.from_list(cmap_name, np.array(cm_tropical), N=n_bins)
-
-        x = embed[:, 0].cpu().numpy().astype(np.float32)
-        y = embed[:, 1].cpu().numpy().astype(np.float32)
-
-        x = (x - x.mean()) / (x.std() + 1e-3)
-        y = (y - y.mean()) / (y.std() + 1e-3)
-
-        self.coord = np.stack([x, y], 1)
-
-        coord = np.unique(self.coord, axis=0)
-
-        size = 500
-        lim = 3
-        x = coord[:, 0] / (2 * lim) + 0.5
-        y = coord[:, 1] / (2 * lim) + 0.5
-        x *= size
-        y *= size
-        mask = (0 < x) & (x < size-1) & (0 < y) & (y < size-1)
-        x = x[mask]
-        y = y[mask]
-
-        z = np.zeros([size, size])
-        np.add.at(z, (np.round(x).astype(int), np.round(y).astype(int)), 1)
-
-        # TODO Just do it all with torch
-        z = torch.from_numpy(z).float()
-        z = fast_gaussian_filter(z.view(1, 1, z.size(0), z.size(1)), kernel_sigma=3.5)[0, 0]
-        z = z.numpy()
-
-        ls = np.linspace(-lim, lim, size)
-        xi, yi = np.meshgrid(ls, ls, indexing='ij')
-
-        self.ax_hm.contourf(xi, yi, z, levels=100, alpha=1, cmap=cm)
-
-        self.ax_hm.set_xlim([-lim, lim])
-        self.ax_hm.set_ylim([-lim, lim])
-
         # VOLUME RENDERER QUEUES -----------------------------------------------------------------------
 
         self.volume_render_input_queue = mp.Queue()  # Input to the volume renderer
@@ -162,6 +105,19 @@ class Viewer:
 
         save_images_button_axes = plt.axes([0.34, 0.01, 0.1, 0.05])
         save_images_button = Button(save_images_button_axes, 'save\nGIF')
+
+        # Heat-map setting ---------
+
+        self.hm_sigma = 5
+
+        hm_up_button_axes = plt.axes([0.585, 0.037, 0.02, 0.023])
+        hm_up_button = Button(hm_up_button_axes, '↑')
+
+        hm_down_button_axes = plt.axes([0.585, 0.01, 0.02, 0.023])
+        hm_down_button = Button(hm_down_button_axes, '↓')
+
+        self.hm_text_axes = plt.axes([0.61, 0.01, 0.1, 0.05])
+        self.hm_sigma_text = make_text_box(self.hm_text_axes, f"Heatmap\n{self.hm_sigma}")
 
         # B-Factor setting ---------
 
@@ -201,10 +157,45 @@ class Viewer:
         subset_button.on_clicked(self.subset_selection)
         save_volumes_button.on_clicked(self.save_selected_volumes)
         save_images_button.on_clicked(self.save_volume_images)
+        hm_up_button.on_clicked(self.raise_hm_sigma)
+        hm_down_button.on_clicked(self.lower_hm_sigma)
         bfactor_up_button.on_clicked(self.raise_bfactor)
         bfactor_down_button.on_clicked(self.lower_bfactor)
         iso_value_up_button.on_clicked(self.raise_iso_value)
         iso_value_down_button.on_clicked(self.lower_iso_value)
+
+        # MAKE HEAT MAP -------------------------------------------------------------------------------------
+
+        from matplotlib.colors import LinearSegmentedColormap
+        from scipy.stats import gaussian_kde
+
+        cm_voltage = [
+            (1.000, 1.000, 1.000), (0.768, 0.881, 0.943), (0.522, 0.761, 0.959), (0.435, 0.607, 0.998),
+            (0.488, 0.421, 0.953), (0.515, 0.211, 0.817), (0.459, 0.054, 0.570), (0.309, 0.082, 0.301)
+        ]
+        cm_tropical = [
+            (1.000, 1.000, 1.000), (0.267, 0.987, 0.988), (0.154, 0.934, 0.722), (0.429, 0.843, 0.431),
+            (0.647, 0.719, 0.203), (0.772, 0.580, 0.031), (0.837, 0.429, 0.067), (0.850, 0.273, 0.195),
+            (0.808, 0.111, 0.354), (0.699, 0.022, 0.528), (0.565, 0.054, 0.646)
+        ]
+        n_bins = 100  # Use 100 bins for smooth transitions
+
+        # Create the colormap
+        cmap_name = 'custom_white_purple_blue'
+        self.hm_cm = LinearSegmentedColormap.from_list(cmap_name, np.array(cm_tropical), N=n_bins)
+
+        self.marker_size = 0.05
+
+        x = embed[:, 0].cpu().numpy().astype(np.float32)
+        y = embed[:, 1].cpu().numpy().astype(np.float32)
+
+        x = (x - x.mean()) / (x.std() + 1e-3)
+        y = (y - y.mean()) / (y.std() + 1e-3)
+
+        self.coord = np.stack([x, y], 1)
+        self.coord_unique = np.unique(self.coord, axis=0)
+
+        self.update_hm()
 
         #  --------------------------------------------------------------------------------
 
@@ -303,10 +294,37 @@ class Viewer:
         self.volume_render_input_queue.put("save_images")
 
     @torch.no_grad()
-    def update_bfactor(self, bfac):
+    def update_hm(self):
+        size = 500
+        lim = 3
+        x = self.coord_unique[:, 1] / (2 * lim) + 0.5
+        y = self.coord_unique[:, 0] / (2 * lim) + 0.5
+        x *= size
+        y *= size
+        mask = (0 < x) & (x < size-1) & (0 < y) & (y < size-1)
+        x = x[mask]
+        y = y[mask]
+
+        z = np.zeros([size, size])
+        np.add.at(z, (np.round(x).astype(int), np.round(y).astype(int)), 1)
+
+        from scipy.ndimage import gaussian_filter
+        z = gaussian_filter(z, self.hm_sigma)
+
+        self.ax_hm.imshow(z, cmap=self.hm_cm, extent=(-lim, lim, lim, -lim))
+
+        self.ax_hm.set_xlim([-lim, lim])
+        self.ax_hm.set_ylim([-lim, lim])
+
+        self.hm_sigma_text.set_text(f"Smooth\n{round(self.hm_sigma)}")
+        self.fig_hm.canvas.blit(self.hm_text_axes.bbox)
+        self.fig_hm.canvas.draw()
+
+    @torch.no_grad()
+    def update_bfactor(self):
         idx = torch.linspace(0, 2, self.ft_shape[-1] * 2, device=self.device)
         res2 = torch.square(idx / self.voxel_size)
-        profile = torch.exp(-bfac / 4. * res2)
+        profile = torch.exp(-self.bfactor / 4. * res2)
         grid = spectra_to_grid(profile, self.spectral_indices)
 
         for i in range(self.summary.basis.shape[0]):
@@ -328,13 +346,21 @@ class Viewer:
         self.fig_hm.canvas.blit(self.iso_value_text_axes.bbox)
         self.fig_hm.canvas.draw()
 
+    def raise_hm_sigma(self, _=None):
+        self.hm_sigma += 1
+        self.update_hm()
+
+    def lower_hm_sigma(self, _=None):
+        self.hm_sigma = max(2, self.hm_sigma - 1)
+        self.update_hm()
+
     def raise_bfactor(self, _=None):
         self.bfactor += self.bfactor_step
-        self.update_bfactor(self.bfactor)
+        self.update_bfactor()
 
     def lower_bfactor(self, _=None):
         self.bfactor -= self.bfactor_step
-        self.update_bfactor(self.bfactor)
+        self.update_bfactor()
 
     def raise_iso_value(self, _=None):
         self.volume_render_input_queue.put("up")
