@@ -108,25 +108,25 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--z_contrastive_margin',
         help='Contrastive learning margin for Z',
-        type=range_limited_float_type(0), default=0.5
+        type=range_limited_float_type(0), default=0.1
     )
 
     parser.add_argument(
         '--s_contrastive_weight',
         help='Contrastive learning weight for S',
-        type=range_limited_float_type(0), default=1.0
+        type=range_limited_float_type(0), default=2.0
     )
 
     parser.add_argument(
         '--s_contrastive_margin',
         help='Contrastive learning margin for S',
-        type=range_limited_float_type(0), default=0.5
+        type=range_limited_float_type(0), default=0.3
     )
 
     parser.add_argument(
         '--kl_weight',
         help='KL divergence weight',
-        type=range_limited_float_type(0), default=1e-5
+        type=range_limited_float_type(0), default=1e-4
     )
 
     parser.add_argument(

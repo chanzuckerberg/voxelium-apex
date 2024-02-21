@@ -87,6 +87,15 @@ class Viewer:
         self.ax_hm.axis('off')
         plt.tight_layout()
 
+        x = embed[:, 0].cpu().numpy().astype(np.float32)
+        y = embed[:, 1].cpu().numpy().astype(np.float32)
+
+        x = (x - x.mean()) / (x.std() + 1e-3)
+        y = (y - y.mean()) / (y.std() + 1e-3)
+
+        self.coord = np.stack([x, y], 1)
+        self.coord_unique = np.unique(self.coord, axis=0)
+
         # VOLUME RENDERER QUEUES -----------------------------------------------------------------------
 
         self.volume_render_input_queue = mp.Queue()  # Input to the volume renderer
@@ -108,7 +117,7 @@ class Viewer:
 
         # Heat-map setting ---------
 
-        self.hm_sigma = 5
+        self.hm_sigma = 4
 
         hm_up_button_axes = plt.axes([0.585, 0.037, 0.02, 0.023])
         hm_up_button = Button(hm_up_button_axes, '↑')
@@ -167,7 +176,6 @@ class Viewer:
         # MAKE HEAT MAP -------------------------------------------------------------------------------------
 
         from matplotlib.colors import LinearSegmentedColormap
-        from scipy.stats import gaussian_kde
 
         cm_voltage = [
             (1.000, 1.000, 1.000), (0.768, 0.881, 0.943), (0.522, 0.761, 0.959), (0.435, 0.607, 0.998),
@@ -185,15 +193,6 @@ class Viewer:
         self.hm_cm = LinearSegmentedColormap.from_list(cmap_name, np.array(cm_tropical), N=n_bins)
 
         self.marker_size = 0.05
-
-        x = embed[:, 0].cpu().numpy().astype(np.float32)
-        y = embed[:, 1].cpu().numpy().astype(np.float32)
-
-        x = (x - x.mean()) / (x.std() + 1e-3)
-        y = (y - y.mean()) / (y.std() + 1e-3)
-
-        self.coord = np.stack([x, y], 1)
-        self.coord_unique = np.unique(self.coord, axis=0)
 
         self.update_hm()
 
