@@ -58,6 +58,7 @@ class Encoder(nn.Module):
 
         return self.output_layer(y)
 
+
 class Decoder(nn.Module):
     def __init__(self, input_dim, hidden_dims, output_dim, activation_fn, batch_norm=False) -> None:
         super().__init__()

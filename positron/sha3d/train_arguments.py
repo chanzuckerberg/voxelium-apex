@@ -130,9 +130,15 @@ def append_train_arguments(parser):
     )
 
     parser.add_argument(
-        '--aug_noise',
-        help='Contrastive learning augmentation noise',
-        type=range_limited_float_type(0), default=0.05
+        '--layer_noise',
+        help='Contrastive learning model layer augmentation noise',
+        type=range_limited_float_type(0), default=0.
+    )
+
+    parser.add_argument(
+        '--feature_noise',
+        help='Contrastive learning feature augmentation noise',
+        type=range_limited_float_type(0), default=0.1
     )
 
     parser.add_argument(
