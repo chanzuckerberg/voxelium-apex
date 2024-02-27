@@ -16,7 +16,10 @@ import matplotlib
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.lines import Line2D
+
+from positron.base.plot import get_default_cmap
 
 
 def standardize(np_input):
@@ -106,7 +109,7 @@ def make_scatter_fig(x, y, c=None):
     return fig
 
 
-def make_gaussian_kde_fig(x, y):
+def make_heatmap_fig(x, y, bins=400, sigma=4, cm=None):
     if torch.is_tensor(x):
         x = x.detach().data.cpu().numpy()
     if torch.is_tensor(y):
@@ -117,18 +120,38 @@ def make_gaussian_kde_fig(x, y):
 
     fig, ax = plt.subplots(figsize=(7, 7))
 
-    xy = np.vstack([x, y])
-    from scipy.stats import gaussian_kde
-    z = gaussian_kde(xy)(xy)
-    ax.scatter(x, y, c=z, s=100)
+    lim = 3
 
     mx = np.mean(x)
-    sx = np.std(x) * 3
+    sx = np.std(x) * lim
     my = np.mean(y)
-    sy = np.std(y) * 3
+    sy = np.std(y) * lim
 
-    ax.set_xlim([mx - sx, mx + sx])
-    ax.set_ylim([my - sy, my + sy])
+    x_min = mx - sx
+    x_max = mx + sx
+    y_min = my - sy
+    y_max = my + sy
+
+    x = ((x - mx) / (2 * sx) + 0.5) * bins
+    y = ((y - my) / (2 * sy) + 0.5) * bins
+
+    mask = (0 <= x) & (x < bins - 0.5) & (0 <= y) & (y < bins - 0.5)
+    x = np.round(x[mask]).astype(int)
+    y = np.round(y[mask]).astype(int)
+
+    z = np.zeros([bins, bins])
+    np.add.at(z, (y, x), 1)
+
+    from scipy.ndimage import gaussian_filter
+    z = gaussian_filter(z, sigma)
+
+    if cm is None:
+        cm = get_default_cmap()
+
+    ax.imshow(z, cmap=cm, extent=(x_min, x_max, y_max, y_min))
+
+    ax.set_xlim([x_min, x_max])
+    ax.set_ylim([y_min, y_max])
 
     plt.subplots_adjust(top=0.99, bottom=0.05, right=0.99, left=0.1,
                         hspace=0, wspace=0)

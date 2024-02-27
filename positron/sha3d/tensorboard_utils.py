@@ -13,7 +13,7 @@ import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
 from positron.base import dt_desymmetrize, idft
-from positron.base.torch_utils import make_imshow_fig, make_scatter_fig, pca_dim_reduction
+from positron.base.torch_utils import make_imshow_fig, make_scatter_fig, pca_dim_reduction, make_heatmap_fig
 from positron.sha3d.hidden_variable_container import HiddenVariableContainer
 
 Tensor = TypeVar('torch.tensor')
@@ -113,5 +113,10 @@ class TensorboardSummary:
             if z.size(1) > 2:
                 z = pca_dim_reduction(z, subsample=20000)
                 # z = z[:, :2]
+
             fig = make_scatter_fig(x=z[:, 0], y=z[:, 1])
-            self.summary.add_figure(f"Latent", fig, self.step)
+            self.summary.add_figure(f"Latent scatter", fig, self.step)
+
+            z_ = z[:min(z.size(0), 200_000)]
+            fig = make_heatmap_fig(x=z_[:, 0], y=z_[:, 1])
+            self.summary.add_figure(f"Latent heatmap", fig, self.step)

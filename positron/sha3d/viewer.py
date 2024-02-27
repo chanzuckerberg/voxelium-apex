@@ -23,6 +23,7 @@ from matplotlib.path import Path
 
 from positron.base import get_spectral_indices, spectra_to_grid, dft, idft
 from positron.base.grid import load_mrc, save_mrc, fast_gaussian_filter
+from positron.base.plot import get_default_cmap
 from positron.base.torch_utils import pca_dim_reduction
 from positron.sha3d.summary import Summary
 from positron.sha3d.train_utils import setup_device
@@ -94,7 +95,6 @@ class Viewer:
         y = (y - y.mean()) / (y.std() + 1e-3)
 
         self.coord = np.stack([x, y], 1)
-        self.coord_unique = np.unique(self.coord, axis=0)
 
         # VOLUME RENDERER QUEUES -----------------------------------------------------------------------
 
@@ -175,24 +175,21 @@ class Viewer:
 
         # MAKE HEAT MAP -------------------------------------------------------------------------------------
 
-        from matplotlib.colors import LinearSegmentedColormap
-
-        cm_voltage = [
-            (1.000, 1.000, 1.000), (0.768, 0.881, 0.943), (0.522, 0.761, 0.959), (0.435, 0.607, 0.998),
-            (0.488, 0.421, 0.953), (0.515, 0.211, 0.817), (0.459, 0.054, 0.570), (0.309, 0.082, 0.301)
-        ]
-        cm_tropical = [
-            (1.000, 1.000, 1.000), (0.267, 0.987, 0.988), (0.154, 0.934, 0.722), (0.429, 0.843, 0.431),
-            (0.647, 0.719, 0.203), (0.772, 0.580, 0.031), (0.837, 0.429, 0.067), (0.850, 0.273, 0.195),
-            (0.808, 0.111, 0.354), (0.699, 0.022, 0.528), (0.565, 0.054, 0.646)
-        ]
-        n_bins = 100  # Use 100 bins for smooth transitions
-
-        # Create the colormap
-        cmap_name = 'custom_white_purple_blue'
-        self.hm_cm = LinearSegmentedColormap.from_list(cmap_name, np.array(cm_tropical), N=n_bins)
+        self.hm_cm = get_default_cmap()
 
         self.marker_size = 0.05
+        self.hm_bins = 500
+        self.hm_lim = 3
+
+        c = np.unique(self.coord, axis=0)
+        c = (c / (2 * self.hm_lim) + 0.5) * self.hm_bins
+
+        mask = (0 <= c) & (c < self.hm_bins - 0.5)
+        mask = mask.all(axis=1)
+        c = np.round(c[mask]).astype(int)
+
+        self.hm_sharp = np.zeros([self.hm_bins, self.hm_bins])
+        np.add.at(self.hm_sharp, (c[:, 1], c[:, 0]), 1)
 
         self.update_hm()
 
@@ -294,26 +291,14 @@ class Viewer:
 
     @torch.no_grad()
     def update_hm(self):
-        size = 500
-        lim = 3
-        x = self.coord_unique[:, 1] / (2 * lim) + 0.5
-        y = self.coord_unique[:, 0] / (2 * lim) + 0.5
-        x *= size
-        y *= size
-        mask = (0 < x) & (x < size-1) & (0 < y) & (y < size-1)
-        x = x[mask]
-        y = y[mask]
-
-        z = np.zeros([size, size])
-        np.add.at(z, (np.round(x).astype(int), np.round(y).astype(int)), 1)
-
         from scipy.ndimage import gaussian_filter
-        z = gaussian_filter(z, self.hm_sigma)
+        hm_smooth = gaussian_filter(self.hm_sharp, self.hm_sigma)
 
-        self.ax_hm.imshow(z, cmap=self.hm_cm, extent=(-lim, lim, lim, -lim))
+        l = self.hm_lim
+        self.ax_hm.imshow(hm_smooth, cmap=self.hm_cm, extent=(-l, l, l, -l))
 
-        self.ax_hm.set_xlim([-lim, lim])
-        self.ax_hm.set_ylim([-lim, lim])
+        self.ax_hm.set_xlim([-l, l])
+        self.ax_hm.set_ylim([-l, l])
 
         self.hm_sigma_text.set_text(f"Smooth\n{round(self.hm_sigma)}")
         self.fig_hm.canvas.blit(self.hm_text_axes.bbox)
