@@ -187,11 +187,12 @@ def train(rank, args, ddp_args):
         do_roi=roi_mask is not None
     )
 
+    solvent_smoothing = args.solvent_smoothing / pixel_size if args.solvent_smoothing is not None else 1
     solvent_mask_applicator = MaskApplicator(
         rec.decoder.projector,
         solvent_mask=solvent_mask,
         roi_mask=roi_mask,
-        solvent_smoothing=args.solvent_smoothing / pixel_size
+        solvent_smoothing=solvent_smoothing
     )
 
     subtract_during_finalize = subtract_mask is not None

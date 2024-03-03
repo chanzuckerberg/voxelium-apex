@@ -51,7 +51,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--solvent_smoothing',
         help='Smoothing kernel size (in Ångströms) of the solvent region (zero=no smoothing).',
-        type=range_limited_float_type(0, 10), default=4
+        type=range_limited_float_type(0, 10), default=None
     )
     parser.add_argument(
         '--subtract_mask',

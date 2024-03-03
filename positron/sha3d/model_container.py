@@ -8,7 +8,7 @@ import torch.nn as nn
 
 from typing import List, TypeVar, Dict, Union
 
-from positron.base import get_activation_function_by_name
+from positron.base import get_activation_function_by_name, ResidBlock
 from .train_utils import parse_bounds_str
 
 from ..base import ModelContainer, spectral_index_from_resolution
@@ -17,84 +17,43 @@ from .base_optim import BaseOptimizer
 from .structure_decoder import StructureDecoder
 
 
-class Encoder(nn.Module):
-    def __init__(self, input_dim, hidden_dims, output_dim, activation_fn, batch_norm=False) -> None:
+class Encoder(torch.nn.Module):
+    def __init__(
+            self,
+            output_dim: int,
+            input_dim: int,
+            resid_dim: int = 128,
+            resid_count: int = 3,
+            activation=torch.nn.ELU(),
+            normalize_fn=None,
+            init_factor: float = 1.
+    ) -> None:
         super().__init__()
 
-        self.input_bn = nn.BatchNorm1d(input_dim)
-
-        self.activation_fn = get_activation_function_by_name(activation_fn)
-        self.input_layer = nn.Linear(input_dim, hidden_dims[0])
-        self.batch_norm = batch_norm
-        self.input_batchnorm = nn.BatchNorm1d(hidden_dims[0]) if batch_norm else None
+        self.initial_layer = torch.nn.Sequential(
+            torch.nn.Linear(input_dim, resid_dim),
+            activation
+        )
 
         self.hidden_layers = nn.ModuleList()
-        self.hidden_batchnorms = nn.ModuleList()
-        pre_dim = hidden_dims[0]
-        for dim in hidden_dims:
-            self.hidden_layers.append(nn.Linear(pre_dim, dim))
-            self.hidden_batchnorms.append(nn.BatchNorm1d(dim) if batch_norm else None)
-            pre_dim = dim
+        for i in range(resid_count):
+            self.hidden_layers.append(ResidBlock(resid_dim, activation, normalize_fn, init_factor))
 
-        self.output_layer = nn.Linear(pre_dim, output_dim)
+        self.final_linear = torch.nn.Linear(resid_dim, output_dim)
 
     def forward(self, x: torch.tensor, noise=0) -> torch.tensor:
-        y = x
-        # y = self.input_bn(y)
-        y = self.input_layer(y)
-        if self.batch_norm:
-            y = self.input_batchnorm(y)
-        y = self.activation_fn(y)
+        y = self.initial_layer(x)
         if noise > 0:
             y += torch.randn_like(y) * noise
 
-        for hidden_layer, batchnorm in zip(self.hidden_layers, self.hidden_batchnorms):
+        for hidden_layer in self.hidden_layers:
             y = hidden_layer(y)
-            if self.batch_norm:
-                y = batchnorm(y)
-            y = self.activation_fn(y)
             if noise > 0:
                 y += torch.randn_like(y) * noise
 
-        return self.output_layer(y)
+        y = self.final_linear(y)
 
-
-class Decoder(nn.Module):
-    def __init__(self, input_dim, hidden_dims, output_dim, activation_fn, batch_norm=False) -> None:
-        super().__init__()
-        self.activation_fn = get_activation_function_by_name(activation_fn)
-        self.input_layer = nn.Linear(input_dim, hidden_dims[0])
-        self.batch_norm = batch_norm
-        self.input_batchnorm = nn.BatchNorm1d(hidden_dims[0]) if batch_norm else None
-
-        self.hidden_layers = nn.ModuleList()
-        self.hidden_batchnorms = nn.ModuleList()
-        pre_dim = hidden_dims[0]
-        for dim in hidden_dims:
-            self.hidden_layers.append(nn.Linear(pre_dim, dim))
-            self.hidden_batchnorms.append(nn.BatchNorm1d(dim) if batch_norm else None)
-            pre_dim = dim
-
-        self.output_layer = nn.Linear(pre_dim, output_dim)
-        self.final_bn = nn.BatchNorm1d(output_dim)
-
-    def forward(self, x: torch.tensor, noise=0) -> torch.tensor:
-        y = self.input_layer(x)
-        if self.batch_norm:
-            y = self.input_batchnorm(y)
-        y = self.activation_fn(y)
-        if noise > 0:
-            y += torch.randn_like(y) * noise
-
-        for hidden_layer, batchnorm in zip(self.hidden_layers, self.hidden_batchnorms):
-            y = hidden_layer(y)
-            if self.batch_norm:
-                y = batchnorm(y)
-            y = self.activation_fn(y)
-            if noise > 0:
-                y += torch.randn_like(y) * noise
-
-        return self.output_layer(y)
+        return y
 
 
 class ModelContainer(nn.Module):
@@ -117,7 +76,7 @@ class ModelContainer(nn.Module):
             features_std=None
     ) -> None:
         super().__init__()
-        
+
         self.z_size = z_size
         self.s_size = s_size
         self.image_size = image_size
@@ -152,7 +111,7 @@ class ModelContainer(nn.Module):
                     highpass_ang, lowpass_ang = bp
                     minr = spectral_index_from_resolution(highpass_ang, image_size, voxel_size)
                     if lowpass_ang <= voxel_size * 2:
-                        maxr =self.max_r
+                        maxr = self.max_r
                     else:
                         maxr = spectral_index_from_resolution(lowpass_ang, image_size, voxel_size)
                     if (minr, maxr) not in self.feature_bandpass:
@@ -162,16 +121,16 @@ class ModelContainer(nn.Module):
 
         self.z_encoder = Encoder(
             input_dim=feature_size,
-            hidden_dims=[128, 128, 128] if z_encoder_dims is None else z_encoder_dims,
             output_dim=z_size * 2,
-            activation_fn='elu'
+            resid_dim=128,
+            resid_count=4,
         )
 
-        self.s_encoder = Decoder(
+        self.s_encoder = Encoder(
             input_dim=z_size,
-            hidden_dims=[128, 128, 128, 128] if z_encoder_dims is None else z_encoder_dims,
             output_dim=s_size,
-            activation_fn='elu'
+            resid_dim=128,
+            resid_count=4,
         )
 
         self.feature_size = feature_size
@@ -190,7 +149,7 @@ class ModelContainer(nn.Module):
 
         self.features_mean = features_mean
         self.features_std = features_std
-    
+
     def get_circular_mask_params(self):
         circular_mask_radius = self.circular_mask_radius_ang / self.voxel_size
         circular_mask_thickness = self.circular_mask_thickness_ang / self.voxel_size
@@ -258,7 +217,7 @@ class ModelContainer(nn.Module):
         return {
             "type": "MnxVoxelContainer",
             "version": "0.0.1",
-            
+
             "z_size": self.z_size,
             "s_size": self.s_size,
             "feature_bandpass_arg": self.feature_bandpass_arg,
