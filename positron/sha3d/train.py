@@ -290,7 +290,7 @@ def train(rank, args, ddp_args):
                 hvc.set_metadata('feature', particle_idx, f)
 
                 features_ = features if finalize else features + torch.randn_like(features) * args.feature_noise
-                z, s, mu, log_var = rec.vae(features_, noise=0 if finalize else args.layer_noise)
+                z, s_raw, s, mu, log_var = rec.vae(features_, noise=0 if finalize else args.layer_noise)
 
                 if do_tomo:
                     z = z[particle_groups]
@@ -309,7 +309,7 @@ def train(rank, args, ddp_args):
                     feature_extractor.track_s0(s[:, 0])
 
                     features_ = features + torch.randn_like(features) * args.feature_noise
-                    z_aug, s_aug, _, _ = rec.vae(features_, noise=args.layer_noise)
+                    z_aug, s_raw_aug, _, _, _ = rec.vae(features_, noise=args.layer_noise)
 
                     s_retention(logit=s, labels=train_mask, make_summary=log_stats)
                     if log_stats:
@@ -317,7 +317,7 @@ def train(rank, args, ddp_args):
 
                     if do_tomo:
                         z_aug = z_aug[particle_groups]
-                        s_aug = s_aug[particle_groups]
+                        s_raw_aug = s_raw_aug[particle_groups]
 
                     contrastive_loss = 0
                     if args.z_contrastive_weight > 0:
@@ -329,8 +329,8 @@ def train(rank, args, ddp_args):
 
                     if args.s_contrastive_weight > 0:
                         contrastive_loss += batch_triplet_loss(
-                                anchor=s[train_mask],
-                                target=s_aug[train_mask],
+                                anchor=s_raw[train_mask],
+                                target=s_raw_aug[train_mask],
                                 margin=args.s_contrastive_margin
                             ) * args.s_contrastive_weight
 
