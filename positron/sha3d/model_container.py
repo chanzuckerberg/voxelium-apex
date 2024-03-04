@@ -25,7 +25,7 @@ class Encoder(torch.nn.Module):
             resid_dim: int = 128,
             resid_count: int = 3,
             activation=torch.nn.ELU(),
-            normalize_fn=None,
+            normalize_fn=torch.nn.BatchNorm1d,
             init_factor: float = 1.
     ) -> None:
         super().__init__()
