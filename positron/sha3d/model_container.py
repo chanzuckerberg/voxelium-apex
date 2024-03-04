@@ -44,12 +44,12 @@ class Encoder(torch.nn.Module):
     def forward(self, x: torch.tensor, noise=0) -> torch.tensor:
         y = self.initial_layer(x)
         if noise > 0:
-            y += torch.randn_like(y) * noise
+            y += torch.randn_like(y) * y.std().detach() * noise
 
         for hidden_layer in self.hidden_layers:
             y = hidden_layer(y)
             if noise > 0:
-                y += torch.randn_like(y) * noise
+                y += torch.randn_like(y) * y.std().detach() * noise
 
         y = self.final_linear(y)
 
