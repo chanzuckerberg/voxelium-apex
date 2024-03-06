@@ -7,11 +7,11 @@ dependencies:
   - pip
   - eigen
   - loguru
-  - vtk=9.*
   - pip:
       - matplotlib
       - mrcfile
       - numpy
+      - vtk
       - scikit-learn
       - scipy
       - tensorboard
