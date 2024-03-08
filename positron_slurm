@@ -1,0 +1,132 @@
+#!/bin/bash
+
+# Check if 4 arguments are passed
+if [ "$#" = 4 ]; then
+	DATA=$1
+	JOB_NAME=$2
+	FLAGS=$3
+	MASK=$4
+else
+	# Define the file path
+	DEFAULT_FILE=".positron_defaults.txt"
+
+	# Check if the defaults file exists
+	if [ -f "$DEFAULT_FILE" ]; then
+		echo "Default setting file found!" 
+		# Read the values from the file
+		lines=()
+
+		# Read the file line by line
+		while IFS= read -r line; do
+		  # Append each line to the array
+		  lines+=("$line")
+		done < "$DEFAULT_FILE"
+		DATA="${lines[0]}"
+		JOB_NAME="${lines[1]}"
+		FLAGS="${lines[2]}"
+		MASK="${lines[3]}"
+	else
+		# Set empty defaults if the file doesn't exist
+		DATA=""
+		JOB_NAME=""
+		FLAGS=""
+		MASK=""
+	fi
+	
+	zenity --info --text="In the following dialogs select:\n\n   1. Data STAR-File\n   2. Job Name\n   3. Input Flags (optional)\n   4. Summary Mask file (optional)"
+	
+	DATA=$(zenity --file-selection --title="Select data input STAR-filepath" --filename="$DATA")
+	if [ $? -ne 0 ]; then
+		exit 1
+	fi
+
+	JOB_NAME=$(zenity --entry --title="Job Name" --text="Enter the job name:" --entry-text="$JOB_NAME")
+	if [ $? -ne 0 ]; then
+		exit 1
+	fi
+
+	FLAGS=$(zenity --entry --title="Flags" --text="Enter the job flags (optinal):" --entry-text="$FLAGS")
+	if [ $? -ne 0 ]; then
+		exit 1
+	fi
+
+	MASK=$(zenity --file-selection --title="Select summary mask file (optinal)" --filename="$MASK")
+	if [ $? -ne 0 ]; then
+		MASK=""
+	fi
+	
+	# Save the inputs to the file
+	echo "$DATA" > "$DEFAULT_FILE"
+	echo "$JOB_NAME" >> "$DEFAULT_FILE"
+	echo "$FLAGS" >> "$DEFAULT_FILE"
+	echo "$MASK" >> "$DEFAULT_FILE"
+fi
+
+JOB_NAME="${JOB_NAME// /}"
+
+BASEDIR=$(pwd)
+LOGDIR="${BASEDIR}/positron_logdirs/${JOB_NAME}"
+
+# Create log directory
+mkdir -p "${LOGDIR}"
+
+# Generate the slurm script
+SLURM_SCRIPT="${LOGDIR}/slurm.bash"
+
+cat > "${SLURM_SCRIPT}" <<EOF
+#!/bin/bash
+#
+#SBATCH --mail-type=ALL
+#SBATCH --partition=ml
+#SBATCH --gres=gpu:1
+#SBATCH -e ${BASEDIR}/positron_logdirs/${JOB_NAME}/%x_%j.err
+#SBATCH -o ${BASEDIR}/positron_logdirs/${JOB_NAME}/%x_%j.out
+#SBATCH --job-name=${JOB_NAME}
+
+source /lmb/home/dari/.bashrc
+conda activate positron
+
+cd ${BASEDIR}
+
+echo -e "\nHostname:"
+hostname
+
+echo -e "\nGPU info:"
+nvidia-smi --query-gpu=name,driver_version,memory.free,memory.used --format=csv
+
+
+echo -e "\nSlurm job name: ${JOB_NAME}"
+echo "Data file: ${DATA}"
+echo "Analysis flags: ${FLAGS}"
+echo "Summary mask file: ${MASK}"
+echo "Current dir: $(pwd)"
+echo "Log dir: ${LOGDIR}"
+
+echo -e "\nRUNNING POSITRON\n"
+
+positron SHA3D ${DATA} ${LOGDIR} --gpu 0 --s_size 6 --dataloader_threads 2 --overwrite ${FLAGS}
+
+echo -e "\nMAKING SUMMARY\n"
+
+positron SHA3D_summary ${LOGDIR} -m ${MASK}
+
+echo "Done!"
+exit 0
+EOF
+
+# Make the script executable
+chmod +x "${SLURM_SCRIPT}"
+
+# Print the sbatch command
+echo "Generated Slurm script: ${SLURM_SCRIPT}"
+
+DATA=$(zenity --text-info --title="Submit with sbatch?" --filename="$SLURM_SCRIPT")
+if [ $? -ne 0 ]; then
+	echo "To submit the job, run:"
+	echo "sbatch $SLURM_SCRIPT"
+	exit 1
+else
+	echo "Submitting with sbatch"
+	sbatch "$SLURM_SCRIPT"
+fi
+
