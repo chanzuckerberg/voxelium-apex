@@ -291,7 +291,7 @@ def train(rank, args, ddp_args):
                 hvc.set_metadata('feature', particle_idx, f)
 
                 features_ = features if finalize else features + torch.randn_like(features) * args.feature_noise
-                z, s_raw, s, mu, log_var = rec.vae(
+                z, s, mu, log_var = rec.vae(
                     features_,
                     encoder_noise=0 if finalize else args.encoder_noise,
                     decoder_noise=0 if finalize else args.decoder_noise
@@ -314,7 +314,7 @@ def train(rank, args, ddp_args):
                     feature_extractor.track_s0(s[:, 0])
 
                     features_ = features + torch.randn_like(features) * args.feature_noise
-                    z_aug, s_raw_aug, _, _, _ = rec.vae(
+                    _, s_aug, mu_aug, _ = rec.vae(
                         features_, encoder_noise=args.encoder_noise, decoder_noise=args.decoder_noise)
 
                     s_retention(logit=s, labels=train_mask, make_summary=log_stats)
@@ -322,26 +322,8 @@ def train(rank, args, ddp_args):
                         summary.add_scalars(s_retention.get_summary())
 
                     if do_tomo:
-                        z_aug = z_aug[particle_groups]
-                        s_raw_aug = s_raw_aug[particle_groups]
-
-                    contrastive_loss = 0
-                    if args.z_contrastive_weight > 0:
-                        contrastive_loss += batch_triplet_loss(
-                                anchor=z[train_mask],
-                                target=z_aug[train_mask],
-                                margin=args.z_contrastive_margin
-                            ) * args.z_contrastive_weight
-
-                    if args.s_contrastive_weight > 0:
-                        contrastive_loss += batch_triplet_loss(
-                                anchor=s_raw[train_mask],
-                                target=s_raw_aug[train_mask],
-                                margin=args.s_contrastive_margin
-                            ) * args.s_contrastive_weight
-
-                    kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var[train_mask] - mu[train_mask] ** 2 - log_var[train_mask].exp(), dim=1), dim=0)
-
+                        mu_aug = mu_aug[particle_groups]
+                        s_aug = s_aug[particle_groups]
                     if log_stats:
                         summary.add_scalar(f"Z/std", z.std())
                         summary.add_scalar(f"Z/mean", z.mean())
@@ -376,18 +358,50 @@ def train(rank, args, ddp_args):
                     )
 
                     if step > 0:
-                        total_loss = (
-                                weighted_mse +
-                                contrastive_loss +
-                                kld_loss * args.kl_weight
-                        )
+                        total_loss = weighted_mse
+
+                        if args.s_norm_weight > 0:
+                            s_norm_loss = (s.square().sum(1).sqrt() - 1).square().mean()
+                            total_loss += s_norm_loss * args.s_norm_weight
+                            if log_stats:
+                                summary.add_scalar(f"Loss/S norm", s_norm_loss)
+
+                        if args.z_contrastive_weight > 0:
+                            z_contrastive_loss = batch_triplet_loss(
+                                anchor=mu[train_mask],
+                                target=mu_aug[train_mask],
+                                margin=args.z_contrastive_margin
+                            )
+                            total_loss += z_contrastive_loss * args.z_contrastive_weight
+                            if log_stats:
+                                summary.add_scalar(f"Loss/Z contrastive", z_contrastive_loss)
+
+                        if args.s_contrastive_weight > 0:
+                            s_contrastive_loss = batch_triplet_loss(
+                                anchor=s[train_mask],
+                                target=s_aug[train_mask],
+                                margin=args.s_contrastive_margin
+                            )
+                            total_loss += s_contrastive_loss * args.s_contrastive_weight
+                            if log_stats:
+                                summary.add_scalar(f"Loss/S contrastive", s_contrastive_loss)
+
+                        if args.kl_weight > 0:
+                            kld_loss = torch.mean(
+                                -0.5 * torch.sum(
+                                    1 + log_var[train_mask] - mu[train_mask] ** 2 - log_var[train_mask].exp(),
+                                    dim=1),
+                                dim=0)
+                            total_loss += kld_loss * args.kl_weight
+                            if log_stats:
+                                summary.add_scalar(f"Loss/KL Divergence", kld_loss)
+
                         total_loss.backward()
 
                         if log_stats:
                             mse = torch.mean(square_error_train[:, spectral_mask])
                             summary.add_scalar(f"Loss/MSE", mse)
                             summary.add_scalar(f"Loss/MSE weighted", weighted_mse)
-                            summary.add_scalar(f"Loss/Contrastive", contrastive_loss)
                             summary.add_scalar(f"Loss/Total", total_loss)
 
                         reg_count = min(valid_batch_size * 2, this_batch_size - 1)

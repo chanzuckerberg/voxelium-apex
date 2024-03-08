@@ -102,7 +102,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--z_contrastive_weight',
         help='Contrastive learning weight for Z',
-        type=range_limited_float_type(0), default=1.0
+        type=range_limited_float_type(0), default=1.
     )
 
     parser.add_argument(
@@ -114,7 +114,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--s_contrastive_weight',
         help='Contrastive learning weight for S',
-        type=range_limited_float_type(0), default=2.0
+        type=range_limited_float_type(0), default=.1
     )
 
     parser.add_argument(
@@ -124,9 +124,15 @@ def append_train_arguments(parser):
     )
 
     parser.add_argument(
+        '--s_norm_weight',
+        help='Weight for unit norm loss on s.',
+        type=range_limited_float_type(0), default=0.1
+    )
+
+    parser.add_argument(
         '--kl_weight',
         help='KL divergence weight',
-        type=range_limited_float_type(0), default=0.001
+        type=range_limited_float_type(0), default=0.0001
     )
 
     parser.add_argument(
@@ -138,13 +144,13 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--decoder_noise',
         help='Contrastive learning model layer augmentation noise',
-        type=range_limited_float_type(0), default=0.
+        type=range_limited_float_type(0), default=0.0001
     )
 
     parser.add_argument(
         '--feature_noise',
         help='Contrastive learning feature augmentation noise',
-        type=range_limited_float_type(0), default=0.1
+        type=range_limited_float_type(0), default=0.01
     )
 
     parser.add_argument(
@@ -200,18 +206,6 @@ def append_train_arguments(parser):
     )
     parser.add_argument(
         "--lam",
-        type=float,
-        default=1.,
-        help="Regularization parameter"
-    )
-    parser.add_argument(
-        "--lam_base",
-        type=float,
-        default=1.,
-        help="Regularization parameter"
-    )
-    parser.add_argument(
-        "--dampen",
         type=float,
         default=1.,
         help="Regularization parameter"

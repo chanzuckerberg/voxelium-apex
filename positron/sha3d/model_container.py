@@ -184,10 +184,9 @@ class ModelContainer(nn.Module):
         mu, log_var = self.encode(x, noise=encoder_noise)
         z = mu if encoder_noise == 0 else self.reparameterize(mu, log_var)
 
-        s_raw = self.s_encoder(z, noise=decoder_noise)
-        s = s_raw / (s_raw.square().sum(1, keepdim=True).sqrt() + 1e-12)
+        s = self.s_encoder(z, noise=decoder_noise)
 
-        return z, s_raw, s, mu, log_var
+        return z, s, mu, log_var
 
     def init_optimizers(self):
         _, spectral_idx, _ = self.decoder._load_cache(self.decoder.max_r, True)
