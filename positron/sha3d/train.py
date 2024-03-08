@@ -291,7 +291,11 @@ def train(rank, args, ddp_args):
                 hvc.set_metadata('feature', particle_idx, f)
 
                 features_ = features if finalize else features + torch.randn_like(features) * args.feature_noise
-                z, s_raw, s, mu, log_var = rec.vae(features_, noise=0 if finalize else args.layer_noise)
+                z, s_raw, s, mu, log_var = rec.vae(
+                    features_,
+                    encoder_noise=0 if finalize else args.encoder_noise,
+                    decoder_noise=0 if finalize else args.decoder_noise
+                )
 
                 if do_tomo:
                     z = z[particle_groups]
@@ -310,7 +314,8 @@ def train(rank, args, ddp_args):
                     feature_extractor.track_s0(s[:, 0])
 
                     features_ = features + torch.randn_like(features) * args.feature_noise
-                    z_aug, s_raw_aug, _, _, _ = rec.vae(features_, noise=args.layer_noise)
+                    z_aug, s_raw_aug, _, _, _ = rec.vae(
+                        features_, encoder_noise=args.encoder_noise, decoder_noise=args.decoder_noise)
 
                     s_retention(logit=s, labels=train_mask, make_summary=log_stats)
                     if log_stats:

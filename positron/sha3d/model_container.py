@@ -180,11 +180,11 @@ class ModelContainer(nn.Module):
         log_var = out[:, out.size(1) // 2:]
         return mu, log_var
 
-    def vae(self, x, noise=0):
-        mu, log_var = self.encode(x, noise=noise)
-        z = mu if noise == 0 else self.reparameterize(mu, log_var)
+    def vae(self, x, encoder_noise=0, decoder_noise=0):
+        mu, log_var = self.encode(x, noise=encoder_noise)
+        z = mu if encoder_noise == 0 else self.reparameterize(mu, log_var)
 
-        s_raw = self.s_encoder(z, noise=noise)
+        s_raw = self.s_encoder(z, noise=decoder_noise)
         s = s_raw / (s_raw.square().sum(1, keepdim=True).sqrt() + 1e-12)
 
         return z, s_raw, s, mu, log_var

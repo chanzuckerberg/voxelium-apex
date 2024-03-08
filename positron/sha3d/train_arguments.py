@@ -126,13 +126,19 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--kl_weight',
         help='KL divergence weight',
-        type=range_limited_float_type(0), default=1e-4
+        type=range_limited_float_type(0), default=0.001
     )
 
     parser.add_argument(
-        '--layer_noise',
+        '--encoder_noise',
         help='Contrastive learning model layer augmentation noise',
         type=range_limited_float_type(0), default=0.001
+    )
+
+    parser.add_argument(
+        '--decoder_noise',
+        help='Contrastive learning model layer augmentation noise',
+        type=range_limited_float_type(0), default=0.
     )
 
     parser.add_argument(
