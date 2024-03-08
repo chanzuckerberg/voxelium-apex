@@ -32,7 +32,9 @@ else
 		FLAGS=""
 		MASK=""
 	fi
-
+	
+	zenity --info --text="In the following dialogs select:\n\n   1. Data STAR-File\n   2. Job Name\n   3. Input Flags (optional)\n   4. Summary Mask file (optional)"
+	
 	DATA=$(zenity --file-selection --title="Select data input STAR-filepath" --filename="$DATA")
 	if [ $? -ne 0 ]; then
 		exit 1
@@ -50,7 +52,7 @@ else
 
 	MASK=$(zenity --file-selection --title="Select summary mask file (optinal)" --filename="$MASK")
 	if [ $? -ne 0 ]; then
-		exit 1
+		MASK=""
 	fi
 	
 	# Save the inputs to the file
@@ -59,6 +61,8 @@ else
 	echo "$FLAGS" >> "$DEFAULT_FILE"
 	echo "$MASK" >> "$DEFAULT_FILE"
 fi
+
+JOB_NAME="${JOB_NAME// /}"
 
 BASEDIR=$(pwd)
 LOGDIR="${BASEDIR}/positron_logdirs/${JOB_NAME}"
@@ -100,7 +104,7 @@ echo "Log dir: ${LOGDIR}"
 
 echo -e "\nRUNNING POSITRON\n"
 
-positron SHA3D ${DATA} ${LOGDIR} --gpu 0 --dataloader_threads 2 --overwrite ${FLAGS}
+positron SHA3D ${DATA} ${LOGDIR} --gpu 0 --s_size 6 --dataloader_threads 2 --overwrite ${FLAGS}
 
 echo -e "\nMAKING SUMMARY\n"
 
