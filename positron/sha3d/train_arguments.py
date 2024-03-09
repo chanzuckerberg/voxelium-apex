@@ -126,7 +126,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--s_norm_weight',
         help='Weight for unit norm loss on s.',
-        type=range_limited_float_type(0), default=0.1
+        type=range_limited_float_type(0), default=.1
     )
 
     parser.add_argument(
@@ -206,6 +206,18 @@ def append_train_arguments(parser):
     )
     parser.add_argument(
         "--lam",
+        type=float,
+        default=1.,
+        help="Regularization parameter"
+    )
+    parser.add_argument(
+        "--lam_base",
+        type=float,
+        default=1.,
+        help="Regularization parameter"
+    )
+    parser.add_argument(
+        "--dampen",
         type=float,
         default=1.,
         help="Regularization parameter"

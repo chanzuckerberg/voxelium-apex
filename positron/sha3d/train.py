@@ -361,7 +361,7 @@ def train(rank, args, ddp_args):
                         total_loss = weighted_mse
 
                         if args.s_norm_weight > 0:
-                            s_norm_loss = (s.square().sum(1).sqrt() - 1).square().mean()
+                            s_norm_loss = torch.relu(s.square().sum(1).sqrt() - 1).square().mean()
                             total_loss += s_norm_loss * args.s_norm_weight
                             if log_stats:
                                 summary.add_scalar(f"Loss/S norm", s_norm_loss)
