@@ -125,7 +125,7 @@ def append_train_arguments(parser):
 
     parser.add_argument(
         '--s_norm_weight',
-        help='Weight for unit norm loss on s.',
+        help='Weight for unit norm loss on S',
         type=range_limited_float_type(0), default=.1
     )
 
