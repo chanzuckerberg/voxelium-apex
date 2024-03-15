@@ -126,7 +126,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--kl_weight',
         help='KL divergence weight',
-        type=range_limited_float_type(0), default=0.0001
+        type=range_limited_float_type(0), default=0.
     )
 
     parser.add_argument(

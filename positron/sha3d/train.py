@@ -12,7 +12,7 @@ from datetime import datetime
 from torch.utils.data import DataLoader
 
 from positron.sha3d.feature_extractor import FeatureExtractor
-from positron.sha3d.loss_functions import batch_triplet_loss
+from positron.sha3d.loss_functions import batch_triplet_loss, cosine_similarity_loss, bsc_loss
 from positron.sha3d.mask_applicator import MaskApplicator
 from positron.sha3d.regularizer import Regularizer
 from positron.base.single_particle_validation_sampler import SingleParticleValidationSampler
@@ -294,7 +294,8 @@ def train(rank, args, ddp_args):
                 z, s, mu, log_var = rec.vae(
                     features_,
                     encoder_noise=0 if finalize else args.encoder_noise,
-                    decoder_noise=0 if finalize else args.decoder_noise
+                    decoder_noise=0 if finalize else args.decoder_noise,
+                    reparam=args.kl_weight > 0
                 )
 
                 if do_tomo:
@@ -315,7 +316,11 @@ def train(rank, args, ddp_args):
 
                     features_ = features + torch.randn_like(features) * args.feature_noise
                     _, s_aug, mu_aug, _ = rec.vae(
-                        features_, encoder_noise=args.encoder_noise, decoder_noise=args.decoder_noise)
+                        features_,
+                        encoder_noise=args.encoder_noise,
+                        decoder_noise=args.decoder_noise,
+                        reparam=args.kl_weight > 0
+                    )
 
                     s_retention(logit=s, labels=train_mask, make_summary=log_stats)
                     if log_stats:
