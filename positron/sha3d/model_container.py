@@ -182,7 +182,7 @@ class ModelContainer(nn.Module):
 
     def vae(self, x, encoder_noise=0, decoder_noise=0, reparam=False):
         mu, log_var = self.encode(x, noise=encoder_noise)
-        z = mu if reparam else self.reparameterize(mu, log_var)
+        z = self.reparameterize(mu, log_var) if reparam else mu
 
         s = self.s_encoder(z, noise=decoder_noise)
 
