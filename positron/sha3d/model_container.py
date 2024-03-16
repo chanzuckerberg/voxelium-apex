@@ -186,7 +186,8 @@ class ModelContainer(nn.Module):
 
         s = self.s_encoder(z, noise=decoder_noise)
 
-        s = torch.tanh(s) / s.size(-1)
+        s = s / (1 + torch.sqrt(1 + s.square().sum(1, keepdims=True)))
+        # s = torch.tanh(s) / s.size(-1)
 
         return z, s, mu, log_var
 
