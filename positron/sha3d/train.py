@@ -314,21 +314,10 @@ def train(rank, args, ddp_args):
                 if not finalize:
                     feature_extractor.track_s0(s[:, 0])
 
-                    features_ = features + torch.randn_like(features) * args.feature_noise
-                    _, s_aug, mu_aug, _ = rec.vae(
-                        features_,
-                        encoder_noise=args.encoder_noise,
-                        decoder_noise=args.decoder_noise,
-                        reparam=args.kl_weight > 0
-                    )
-
                     s_retention(logit=s, labels=train_mask, make_summary=log_stats)
                     if log_stats:
                         summary.add_scalars(s_retention.get_summary())
 
-                    if do_tomo:
-                        mu_aug = mu_aug[particle_groups]
-                        s_aug = s_aug[particle_groups]
                     if log_stats:
                         summary.add_scalar(f"Z/std", z.std())
                         summary.add_scalar(f"Z/mean", z.mean())
@@ -367,11 +356,29 @@ def train(rank, args, ddp_args):
                     if step > 0:
                         total_loss = weighted_mse
 
-                        if args.s_norm_weight > 0:
-                            s_norm_loss = s.square().sum(1).mean()
-                            total_loss += s_norm_loss * args.s_norm_weight
+                        if args.s_l1_weight > 0:
+                            s_norm_loss = s.abs().sum(1).mean()
+                            total_loss += s_norm_loss * args.s_l1_weight
                             if log_stats:
-                                summary.add_scalar(f"Loss/S norm", s_norm_loss)
+                                summary.add_scalar(f"Loss/S L1", s_norm_loss)
+
+                        if args.s_l2_weight > 0:
+                            s_norm_loss = s.square().sum(1).mean()
+                            total_loss += s_norm_loss * args.s_l2_weight
+                            if log_stats:
+                                summary.add_scalar(f"Loss/S L2", s_norm_loss)
+
+                        if args.z_contrastive_weight > 0 or args.s_contrastive_weight > 0:
+                            features_ = features + torch.randn_like(features) * args.feature_noise
+                            _, s_aug, mu_aug, _ = rec.vae(
+                                features_,
+                                encoder_noise=args.encoder_noise,
+                                decoder_noise=args.decoder_noise,
+                                reparam=args.kl_weight > 0
+                            )
+                            if do_tomo:
+                                mu_aug = mu_aug[particle_groups]
+                                s_aug = s_aug[particle_groups]
 
                         if args.z_contrastive_weight > 0:
                             z_contrastive_loss = batch_triplet_loss(
