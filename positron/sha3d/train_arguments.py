@@ -124,6 +124,12 @@ def append_train_arguments(parser):
     )
 
     parser.add_argument(
+        '--s_norm_weight',
+        help='The S norm loss weight',
+        type=range_limited_float_type(0), default=0.001
+    )
+
+    parser.add_argument(
         '--kl_weight',
         help='KL divergence weight',
         type=range_limited_float_type(0), default=0.

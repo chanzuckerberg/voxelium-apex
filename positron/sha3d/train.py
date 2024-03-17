@@ -367,6 +367,12 @@ def train(rank, args, ddp_args):
                     if step > 0:
                         total_loss = weighted_mse
 
+                        if args.s_norm_weight > 0:
+                            s_norm_loss = s.square().sum(1).mean()
+                            total_loss += s_norm_loss * args.s_norm_weight
+                            if log_stats:
+                                summary.add_scalar(f"Loss/S norm", s_norm_loss)
+
                         if args.z_contrastive_weight > 0:
                             z_contrastive_loss = batch_triplet_loss(
                                 anchor=mu[train_mask],
