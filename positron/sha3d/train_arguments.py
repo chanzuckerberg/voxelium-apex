@@ -126,31 +126,31 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--s_l1_weight',
         help='The weight for the L1 norm loss for S',
-        type=range_limited_float_type(0), default=0.001
+        type=range_limited_float_type(0), default=0.
     )
 
     parser.add_argument(
         '--s_l2_weight',
         help='The weight for the L2 norm loss for S',
-        type=range_limited_float_type(0), default=0.
+        type=range_limited_float_type(0), default=0.001
     )
 
     parser.add_argument(
         '--kl_weight',
         help='KL divergence weight',
-        type=range_limited_float_type(0), default=1e-6
+        type=range_limited_float_type(0), default=1e-4
     )
 
     parser.add_argument(
         '--encoder_noise',
         help='Contrastive learning model layer augmentation noise',
-        type=range_limited_float_type(0), default=0.001
+        type=range_limited_float_type(0), default=0.
     )
 
     parser.add_argument(
         '--decoder_noise',
         help='Contrastive learning model layer augmentation noise',
-        type=range_limited_float_type(0), default=0.0001
+        type=range_limited_float_type(0), default=0.
     )
 
     parser.add_argument(
