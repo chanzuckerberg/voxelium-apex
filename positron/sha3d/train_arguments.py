@@ -25,7 +25,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--z_size',
         help='Number of learnt representation dimensions.',
-        type=int, default=2
+        type=int, default=8
     )
     parser.add_argument(
         '--s_size',
@@ -102,7 +102,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--z_contrastive_weight',
         help='Contrastive learning weight for Z',
-        type=range_limited_float_type(0), default=0.
+        type=range_limited_float_type(0), default=1.
     )
 
     parser.add_argument(
@@ -114,7 +114,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--s_contrastive_weight',
         help='Contrastive learning weight for S',
-        type=range_limited_float_type(0), default=0.
+        type=range_limited_float_type(0), default=1.
     )
 
     parser.add_argument(
@@ -132,7 +132,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--s_l2_weight',
         help='The weight for the L2 norm loss for S',
-        type=range_limited_float_type(0), default=0.001
+        type=range_limited_float_type(0), default=0.0001
     )
 
     parser.add_argument(

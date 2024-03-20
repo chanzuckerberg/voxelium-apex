@@ -449,31 +449,26 @@ def main(args):
     if embed.size(1) > 2:
         print("Creating 2D representation...")
 
-        embed = (embed - embed.mean(dim=0, keepdim=True)) / (embed.std(dim=0, keepdim=True) + 1e-12)
+        embed = (embed - embed.mean(dim=0, keepdim=True)) / (embed.std() + 1e-12)
 
-        # embed = apply_tsne(embed.to(device), y_init=embed[:, :2], verbose=True)
+        if args.umap:
+            embed = embed.cpu().detach().numpy().astype(np.float32)
 
-        embed = pca_dim_reduction(embed)
-        # embed = embed[:, :2]
+            print("Applying UMAP...")
+            import umap
+            embed = umap.UMAP().fit_transform(embed.astype(np.float32))
 
-        # umap_model = UMAP()
-        # embed = umap_model.fit(x=embed)
-
-        # embed = embed.cpu().detach().numpy().astype(np.float32)
-
-        # import umap
-        # embed = umap.UMAP().fit_transform(embed.astype(np.float32))
+            embed = torch.from_numpy(embed)
+        else:
+            print("Applying PCA...")
+            embed = pca_dim_reduction(embed)
+            embed = embed[:, :2]
 
         # from sklearn.manifold import TSNE
         # embed = TSNE(n_components=2, perplexity=200).fit_transform(embed.astype(np.float32))
 
         # import gpumap
         # embed = gpumap.GPUMAP().fit_transform(embed).astype(np.float32)
-
-        # from sklearn.decomposition import PCA
-        # embed = PCA(n_components=2).fit_transform(embed.astype(np.float32))
-
-        # embed = torch.from_numpy(embed)
 
     print("Visualizing representation...")
 
@@ -486,6 +481,7 @@ def append_args(parser):
     parser.add_argument('--dont_cache_embed', action="store_true")
     parser.add_argument('--ignore_cached_embed', action="store_true")
     parser.add_argument('--scale_invar', action="store_true")
+    parser.add_argument('--umap', action="store_true")
     parser.add_argument('--bfac_step', type=float, default=20, help='B-factor steps')
 
 

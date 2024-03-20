@@ -158,7 +158,7 @@ class VolumeRenderer:
             if isinstance(task, str):
                 if task == "exit":
                     self.input_queue.put("exit")
-                    self.render_window.Finalize()
+                    # self.render_window.Finalize()
                     self.interactor.TerminateApp()
                 else:
                     self.handleKeyPress(task.lower())
@@ -199,7 +199,7 @@ class VolumeRenderer:
 
         self.render_window.Render()
         self.interactor.Start()
-        self.render_window.Finalize()
+        # self.render_window.Finalize()
         self.interactor.TerminateApp()
 
     @staticmethod
