@@ -136,6 +136,12 @@ def append_train_arguments(parser):
     )
 
     parser.add_argument(
+        '--consistency_weight', '--cw',
+        help='Consistency of the S vector',
+        type=range_limited_float_type(0), default=1.
+    )
+
+    parser.add_argument(
         '--kl_weight',
         help='KL divergence weight',
         type=range_limited_float_type(0), default=1e-4

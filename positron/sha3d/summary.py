@@ -222,7 +222,7 @@ def main(args):
     print("Loading modules...")
     summary = Summary.compose_from_logdir(args.logdir, state=args.state)
 
-    if args.mask is not None:
+    if args.mask is not None or args.mask != "":
         print("Applying mask...")
         summary.apply_mask(args.mask)
 

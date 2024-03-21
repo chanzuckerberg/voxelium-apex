@@ -431,7 +431,7 @@ def train(rank, args, ddp_args):
                         consistency_loss = similarity_loss(s, s_)
                         if log_stats:
                             summary.add_scalar(f"Loss/Consistency", consistency_loss)
-                        total_loss += consistency_loss
+                        total_loss += consistency_loss * args.consistency_weight
 
                         total_loss.backward()
 
