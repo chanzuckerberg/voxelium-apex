@@ -552,7 +552,9 @@ def main(args):
     # Remove log directory if overwriting
     if args.overwrite:
         if os.path.isdir(args.log_dir):
-            shutil.rmtree(args.log_dir)
+            tb_logdir = os.path.join(args.log_dir, "tb")
+            if os.path.isdir(tb_logdir):
+                shutil.rmtree(tb_logdir)
 
     if not os.path.isdir(log_dir):
         print("Creating log-directory:", log_dir)
