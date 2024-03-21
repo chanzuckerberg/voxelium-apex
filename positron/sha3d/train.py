@@ -390,9 +390,6 @@ def train(rank, args, ddp_args):
                         #         decoder_noise=args.decoder_noise,
                         #         reparam=args.kl_weight > 0
                         #     )
-                        #     if do_tomo:
-                        #         mu_aug = mu_aug[particle_groups]
-                        #         s_aug = s_aug[particle_groups]
 
                         # if args.z_contrastive_weight > 0:
                         #     z_contrastive_loss = batch_triplet_loss(
@@ -427,6 +424,9 @@ def train(rank, args, ddp_args):
                         features_ = features + torch.randn_like(features) * args.feature_noise
                         z_, _ = rec.encode(features_, noise=args.encoder_noise)
                         s_ = rec.s_encoder(z_, noise=args.decoder_noise)
+
+                        if do_tomo:
+                            s_ = s_[particle_groups]
 
                         consistency_loss = similarity_loss(s, s_)
                         if log_stats:
