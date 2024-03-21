@@ -25,7 +25,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--z_size',
         help='Number of learnt representation dimensions.',
-        type=int, default=8
+        type=int, default=3
     )
     parser.add_argument(
         '--s_size',

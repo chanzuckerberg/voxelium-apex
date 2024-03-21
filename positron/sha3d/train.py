@@ -12,7 +12,8 @@ from datetime import datetime
 from torch.utils.data import DataLoader
 
 from positron.sha3d.feature_extractor import FeatureExtractor
-from positron.sha3d.loss_functions import batch_triplet_loss, cosine_similarity_loss, bsc_loss
+from positron.sha3d.loss_functions import batch_triplet_loss, cosine_similarity_loss, bsc_loss, tsne_loss, \
+    cosine_similarity_loss2, similarity_loss
 from positron.sha3d.mask_applicator import MaskApplicator
 from positron.sha3d.regularizer import Regularizer
 from positron.base.single_particle_validation_sampler import SingleParticleValidationSampler
@@ -229,13 +230,15 @@ def train(rank, args, ddp_args):
             if finalize and subtract_during_finalize:
                 subtraction_helper.initialize()
 
-            for sample in data_loader:
+            for batch_idx, sample in enumerate(data_loader):
                 step = rec.train_step
                 if step >= args.max_steps:
                     raise StopIteration("Maximum step/epoch count reached.")
 
                 if step == 0:
                     summary.write_hidden_variable(hvc)  # Write initial values
+
+                epoch_partial = epoch + float(batch_idx) / float(len(data_loader))
 
                 log_stats = step % args.stats_steps == 0 and step > 0 and not finalize
                 log_images = (step % args.image_steps == 0 and step > 0
@@ -291,21 +294,24 @@ def train(rank, args, ddp_args):
                 hvc.set_metadata('feature', particle_idx, f)
 
                 features_ = features if finalize else features + torch.randn_like(features) * args.feature_noise
-                z, s, mu, log_var = rec.vae(
-                    features_,
-                    encoder_noise=0 if finalize else args.encoder_noise,
-                    decoder_noise=0 if finalize else args.decoder_noise,
-                    reparam=args.kl_weight > 0
-                )
+                z, _ = rec.encode(features_, noise=0 if finalize else args.encoder_noise)
+                s = rec.s_encoder(z, noise=0 if finalize else args.decoder_noise)
+                # z, s, mu, log_var = rec.vae(
+                #     features_,
+                #     encoder_noise=0 if finalize else args.encoder_noise,
+                #     decoder_noise=0 if finalize else args.decoder_noise,
+                #     reparam=args.kl_weight > 0
+                # )
 
                 if do_tomo:
                     z = z[particle_groups]
                     s = s[particle_groups]
-                    mu = mu[particle_groups]
-                    log_var = log_var[particle_groups]
+                    # mu = mu[particle_groups]
+                    # log_var = log_var[particle_groups]
 
-                hvc.set_metadata('log_var', particle_idx, log_var)
-                hvc.set_metadata('z', particle_idx, mu)
+                # hvc.set_metadata('log_var', particle_idx, log_var)
+                # hvc.set_metadata('z', particle_idx, mu)
+                hvc.set_metadata('z', particle_idx, z)
                 hvc.set_metadata('s', particle_idx, s)
 
                 if finalize and subtract_during_finalize:
@@ -352,15 +358,23 @@ def train(rank, args, ddp_args):
                             square_error_train_w[:, spectral_mask].mean(0).sum() /
                             (weight_grid[spectral_mask].sum() + 1e-12)
                     )
-
                     if step > 0:
                         total_loss = weighted_mse
 
-                        if args.s_l1_weight > 0:
-                            s_norm_loss = s.abs().sum(1).mean()
-                            total_loss += s_norm_loss * args.s_l1_weight
-                            if log_stats:
-                                summary.add_scalar(f"Loss/S L1", s_norm_loss)
+                        fsc_spectrum = regularizer.get_fsc_spectrum().clip(0.01, 0.99)
+
+                        regularization_weight = Cache.spectra_to_grids(
+                            1 - fsc_spectrum, hv['ctfs_'].shape[1:], image_max_r)
+                        regularization_loss = torch.mean(x_ft.square().sum(-1) * regularization_weight[None])
+                        if log_stats:
+                            summary.add_scalar(f"Loss/Regularization", regularization_loss)
+                        total_loss += regularization_loss
+
+                        # if args.s_l1_weight > 0:
+                        #     s_norm_loss = s.abs().sum(1).mean()
+                        #     total_loss += s_norm_loss * args.s_l1_weight
+                        #     if log_stats:
+                        #         summary.add_scalar(f"Loss/S L1", s_norm_loss)
 
                         if args.s_l2_weight > 0:
                             s_norm_loss = s.square().sum(1).mean()
@@ -368,47 +382,56 @@ def train(rank, args, ddp_args):
                             if log_stats:
                                 summary.add_scalar(f"Loss/S L2", s_norm_loss)
 
-                        if args.z_contrastive_weight > 0 or args.s_contrastive_weight > 0:
-                            features_ = features + torch.randn_like(features) * args.feature_noise
-                            _, s_aug, mu_aug, _ = rec.vae(
-                                features_,
-                                encoder_noise=args.encoder_noise,
-                                decoder_noise=args.decoder_noise,
-                                reparam=args.kl_weight > 0
-                            )
-                            if do_tomo:
-                                mu_aug = mu_aug[particle_groups]
-                                s_aug = s_aug[particle_groups]
+                        # if args.z_contrastive_weight > 0 or args.s_contrastive_weight > 0:
+                        #     features_ = features + torch.randn_like(features) * args.feature_noise
+                        #     _, s_aug, mu_aug, _ = rec.vae(
+                        #         features_,
+                        #         encoder_noise=args.encoder_noise,
+                        #         decoder_noise=args.decoder_noise,
+                        #         reparam=args.kl_weight > 0
+                        #     )
+                        #     if do_tomo:
+                        #         mu_aug = mu_aug[particle_groups]
+                        #         s_aug = s_aug[particle_groups]
 
-                        if args.z_contrastive_weight > 0:
-                            z_contrastive_loss = batch_triplet_loss(
-                                anchor=mu[train_mask],
-                                target=mu_aug[train_mask],
-                                margin=args.z_contrastive_margin
-                            )
-                            total_loss += z_contrastive_loss * args.z_contrastive_weight
-                            if log_stats:
-                                summary.add_scalar(f"Loss/Z contrastive", z_contrastive_loss)
+                        # if args.z_contrastive_weight > 0:
+                        #     z_contrastive_loss = batch_triplet_loss(
+                        #         anchor=mu[train_mask],
+                        #         target=mu_aug[train_mask],
+                        #         margin=args.z_contrastive_margin
+                        #     )
+                        #     total_loss += z_contrastive_loss * args.z_contrastive_weight
+                        #     if log_stats:
+                        #         summary.add_scalar(f"Loss/Z contrastive", z_contrastive_loss)
 
-                        if args.s_contrastive_weight > 0:
-                            s_contrastive_loss = batch_triplet_loss(
-                                anchor=s[train_mask],
-                                target=s_aug[train_mask],
-                                margin=args.s_contrastive_margin
-                            )
-                            total_loss += s_contrastive_loss * args.s_contrastive_weight
-                            if log_stats:
-                                summary.add_scalar(f"Loss/S contrastive", s_contrastive_loss)
+                        # if args.s_contrastive_weight > 0:
+                        #     s_contrastive_loss = batch_triplet_loss(
+                        #         anchor=s[train_mask],
+                        #         target=s_aug[train_mask],
+                        #         margin=args.s_contrastive_margin
+                        #     )
+                        #     total_loss += s_contrastive_loss * args.s_contrastive_weight
+                        #     if log_stats:
+                        #         summary.add_scalar(f"Loss/S contrastive", s_contrastive_loss)
 
-                        if args.kl_weight > 0:
-                            kld_loss = torch.mean(
-                                -0.5 * torch.sum(
-                                    1 + log_var[train_mask] - mu[train_mask] ** 2 - log_var[train_mask].exp(),
-                                    dim=1),
-                                dim=0)
-                            total_loss += kld_loss * args.kl_weight
-                            if log_stats:
-                                summary.add_scalar(f"Loss/KL Divergence", kld_loss)
+                        # if args.kl_weight > 0:
+                        #     kld_loss = torch.mean(
+                        #         -0.5 * torch.sum(
+                        #             1 + log_var[train_mask] - mu[train_mask] ** 2 - log_var[train_mask].exp(),
+                        #             dim=1),
+                        #         dim=0)
+                        #     total_loss += kld_loss * args.kl_weight
+                        #     if log_stats:
+                        #         summary.add_scalar(f"Loss/KL Divergence", kld_loss)
+
+                        features_ = features + torch.randn_like(features) * args.feature_noise
+                        z_, _ = rec.encode(features_, noise=args.encoder_noise)
+                        s_ = rec.s_encoder(z_, noise=args.decoder_noise)
+
+                        consistency_loss = similarity_loss(s, s_)
+                        if log_stats:
+                            summary.add_scalar(f"Loss/Consistency", consistency_loss)
+                        total_loss += consistency_loss
 
                         total_loss.backward()
 
@@ -420,7 +443,6 @@ def train(rank, args, ddp_args):
 
                         reg_count = min(valid_batch_size * 2, this_batch_size - 1)
 
-                        fsc_spectrum = regularizer.get_fsc_spectrum().clip(0.01, 0.99)
                         lr = get_lr(step, args)
 
                         rec.decoder_opt.set_lr(lr)

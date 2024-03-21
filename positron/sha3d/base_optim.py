@@ -72,9 +72,9 @@ class BaseOptimizer(Optimizer):
                 update_scale = state['spectral_power'].mean(0)
                 update_scale = smoothen_spectra(update_scale[None], kernel=10)[0]
 
-                s = 1 - group['lr'] * update_scale * (1 - fsc_spectrum) * 2
-                rescale_grid = spectra_to_grid(s, sidx)
-                p.mul_(rescale_grid[:, None, None])
+                # s = 1 - group['lr'] * update_scale * (1 - fsc_spectrum) * 2
+                # rescale_grid = spectra_to_grid(s, sidx)
+                # p.mul_(rescale_grid[:, None, None])
 
                 # Weight update
                 s = -group['lr'] * update_scale * fsc_spectrum

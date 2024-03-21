@@ -82,10 +82,22 @@ def cosine_similarity_loss(anchor, target):
     target = F.normalize(target, p=2, dim=1)
 
     # Calculate loss
-    return -torch.mean(anchor * target)
+    return 1 - torch.mean(anchor * target)
+
+
+def cosine_similarity_loss2(anchor, target):
+    # Normalize
+    anchor = F.normalize(anchor, p=2, dim=1)
+    target = F.normalize(target, p=2, dim=1)
+
+    # Calculate loss
+    return torch.log(1 + torch.sum(torch.exp(-anchor * target), dim=1)).mean()
 
 
 def similarity_loss(anchor, target):
+    norm = torch.cat([anchor, target], 0).std(0, keepdim=True) + 1e-12
+    anchor = anchor / norm
+    target = target / norm
     return (anchor - target).square().mean()
 
 
@@ -103,6 +115,32 @@ def batch_triplet_loss(anchor, target, margin=0.1):
     # Calculate loss
     loss = torch.relu(positive[:, None] - negative + margin)
     loss = loss.square().mean()
+
+    return loss
+
+
+def tsne_loss(A, B, bandwidth=0.1, eps=1e-12):
+    """
+    Compute the KL-divergence loss for clustering, based on a Gaussian distribution
+    of distances.
+    """
+    # Compute pairwise distances using torch.cdist
+    A = A / (A.std() + 1e-12)
+    B = B / (B.std() + 1e-12)
+
+    dist_A = torch.cdist(A, A, p=2) / (bandwidth + 1e-12)
+    dist_B = torch.cdist(B, B, p=2) / (bandwidth + 1e-12)
+
+    # Convert distances to probabilities
+    P = torch.softmax(-dist_A.square(), dim=1)
+    Q = torch.softmax(-dist_B.square(), dim=1)
+
+    # Use the KL-divergence formula
+    # Adding a small epsilon to avoid log(0)
+    kl_divergence = P * torch.log(P / (Q + eps) + eps)
+
+    # Sum over pairs of points, and average over the batch
+    loss = kl_divergence.sum(dim=(1,)).mean()
 
     return loss
 

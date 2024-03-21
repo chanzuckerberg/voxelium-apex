@@ -216,51 +216,6 @@ def smoothen_spectra(spec, kernel=5):
     return spec_pad_filter
 
 
-def gaussian_kernel(distance, bandwidth):
-    """
-    Convert a tensor of distances into a tensor of probabilities using a Gaussian kernel.
-    """
-    return torch.exp(-(distance / (bandwidth + 1e-12)).pow(2))
-
-
-def compute_probabilities(distances, bandwidth):
-    """
-    Compute probabilities for each row in a distance matrix.
-    Each row is converted independently.
-    """
-    probabilities = gaussian_kernel(distances, bandwidth)
-    # Normalize each row to sum to 1
-    from torch.nn.functional import softmax
-    return softmax(probabilities, dim=1)
-
-
-def tsne_loss(A, B, bandwidth=1.0):
-    """
-    Compute the KL-divergence loss for clustering, based on a Gaussian distribution
-    of distances.
-    """
-    # Compute pairwise distances using torch.cdist
-    A = A / (A.std().detach() + 1e-12)
-    B = B / (B.std().detach() + 1e-12)
-
-    dist_A = torch.cdist(A, A, p=2)
-    dist_B = torch.cdist(B, B, p=2)
-
-    # Convert distances to probabilities
-    P = compute_probabilities(dist_A, bandwidth)
-    Q = compute_probabilities(dist_B, bandwidth)
-
-    # Use the KL-divergence formula
-    # Adding a small epsilon to avoid log(0)
-    epsilon = 1e-10
-    kl_divergence = P * torch.log((P + epsilon) / (Q + epsilon))
-
-    # Sum over pairs of points, and average over the batch
-    loss = kl_divergence.sum(dim=(1,)).mean()
-
-    return loss
-
-
 def preprocess_batch_hv(sample, dac):
     rec = dac.reconstruction_container
     hvc = dac.hidden_variable_container
