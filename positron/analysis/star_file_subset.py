@@ -24,7 +24,10 @@ def main(args):
     indices = np.loadtxt(args.index, dtype=int)
 
     df = star[args.table]
-    new_df = df.iloc[indices]
+    if args.exclude:
+        new_df = df.drop(indices)
+    else:
+        new_df = df.iloc[indices]
 
     print(f"Number of rows in original STAR-file table: {len(df)}")
     print(f"Number of rows in new STAR-file table: {len(new_df)}")
@@ -52,6 +55,8 @@ def append_args(parser):
                         help="Output STAR-file")
     parser.add_argument("--table", type=str, default="particles",
                         help="Name of the table to select from")
+    parser.add_argument("--exclude", action="store_true",
+                        help="Instead of including the indices in --index, exclude them")
 
 
 if __name__ == "__main__":

@@ -265,6 +265,40 @@ def integer_shift_2d(
     return g
 
 
+def gaussian_blur(grid, sigma):
+    ks = round(sigma * 3)
+    ks = max(ks, 3)
+    ks += 1 - ks % 2  # Make odd
+    ts = np.linspace(-ks / 2, ks / 2, ks)
+    gauss = np.exp((-(ts / sigma) ** 2 / 2))
+    kernel = gauss / gauss.sum()
+
+    sharp = grid
+    blur = np.zeros_like(sharp)
+
+    for i, k in enumerate(kernel):
+        j = i - len(kernel) // 2
+        blur[max(j, 0):len(blur) + min(j, 0)] += sharp[max(-j, 0):len(sharp) - max(j, 0)] * k
+
+    if grid.ndim > 1:  # 2D
+        sharp = blur
+        blur = np.zeros_like(sharp)
+
+        for i, k in enumerate(kernel):
+            j = i - len(kernel) // 2
+            blur[:, max(j, 0):len(blur) + min(j, 0)] += sharp[:, max(-j, 0):len(sharp) - max(j, 0)] * k
+
+    if grid.ndim > 2:  # 3D
+        sharp = blur
+        blur = np.zeros_like(sharp)
+
+        for i, k in enumerate(kernel):
+            j = i - len(kernel) // 2
+            blur[:, :, max(j, 0):len(blur) + min(j, 0)] += sharp[:, :, max(-j, 0):len(sharp) - max(j, 0)] * k
+
+    return blur
+
+
 def make_gaussian_kernel(sigma):
     ks = round(sigma * 3)
     ks = max(ks, 3)

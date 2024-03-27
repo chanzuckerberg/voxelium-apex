@@ -12,8 +12,7 @@ from datetime import datetime
 from torch.utils.data import DataLoader
 
 from positron.sha3d.feature_extractor import FeatureExtractor
-from positron.sha3d.loss_functions import batch_triplet_loss, cosine_similarity_loss, bsc_loss, tsne_loss, \
-    cosine_similarity_loss2, similarity_loss
+from positron.sha3d.loss_functions import batch_triplet_loss, bsc_loss, tsne_loss, similarity
 from positron.sha3d.mask_applicator import MaskApplicator
 from positron.sha3d.regularizer import Regularizer
 from positron.base.single_particle_validation_sampler import SingleParticleValidationSampler
@@ -296,21 +295,11 @@ def train(rank, args, ddp_args):
                 features_ = features if finalize else features + torch.randn_like(features) * args.feature_noise
                 z, _ = rec.encode(features_, noise=0 if finalize else args.encoder_noise)
                 s = rec.s_encoder(z, noise=0 if finalize else args.decoder_noise)
-                # z, s, mu, log_var = rec.vae(
-                #     features_,
-                #     encoder_noise=0 if finalize else args.encoder_noise,
-                #     decoder_noise=0 if finalize else args.decoder_noise,
-                #     reparam=args.kl_weight > 0
-                # )
 
                 if do_tomo:
                     z = z[particle_groups]
                     s = s[particle_groups]
-                    # mu = mu[particle_groups]
-                    # log_var = log_var[particle_groups]
 
-                # hvc.set_metadata('log_var', particle_idx, log_var)
-                # hvc.set_metadata('z', particle_idx, mu)
                 hvc.set_metadata('z', particle_idx, z)
                 hvc.set_metadata('s', particle_idx, s)
 
@@ -370,56 +359,11 @@ def train(rank, args, ddp_args):
                             summary.add_scalar(f"Loss/Regularization", regularization_loss)
                         total_loss += regularization_loss
 
-                        # if args.s_l1_weight > 0:
-                        #     s_norm_loss = s.abs().sum(1).mean()
-                        #     total_loss += s_norm_loss * args.s_l1_weight
-                        #     if log_stats:
-                        #         summary.add_scalar(f"Loss/S L1", s_norm_loss)
-
                         if args.s_l2_weight > 0:
                             s_norm_loss = s.square().sum(1).mean()
                             total_loss += s_norm_loss * args.s_l2_weight
                             if log_stats:
                                 summary.add_scalar(f"Loss/S L2", s_norm_loss)
-
-                        # if args.z_contrastive_weight > 0 or args.s_contrastive_weight > 0:
-                        #     features_ = features + torch.randn_like(features) * args.feature_noise
-                        #     _, s_aug, mu_aug, _ = rec.vae(
-                        #         features_,
-                        #         encoder_noise=args.encoder_noise,
-                        #         decoder_noise=args.decoder_noise,
-                        #         reparam=args.kl_weight > 0
-                        #     )
-
-                        # if args.z_contrastive_weight > 0:
-                        #     z_contrastive_loss = batch_triplet_loss(
-                        #         anchor=mu[train_mask],
-                        #         target=mu_aug[train_mask],
-                        #         margin=args.z_contrastive_margin
-                        #     )
-                        #     total_loss += z_contrastive_loss * args.z_contrastive_weight
-                        #     if log_stats:
-                        #         summary.add_scalar(f"Loss/Z contrastive", z_contrastive_loss)
-
-                        # if args.s_contrastive_weight > 0:
-                        #     s_contrastive_loss = batch_triplet_loss(
-                        #         anchor=s[train_mask],
-                        #         target=s_aug[train_mask],
-                        #         margin=args.s_contrastive_margin
-                        #     )
-                        #     total_loss += s_contrastive_loss * args.s_contrastive_weight
-                        #     if log_stats:
-                        #         summary.add_scalar(f"Loss/S contrastive", s_contrastive_loss)
-
-                        # if args.kl_weight > 0:
-                        #     kld_loss = torch.mean(
-                        #         -0.5 * torch.sum(
-                        #             1 + log_var[train_mask] - mu[train_mask] ** 2 - log_var[train_mask].exp(),
-                        #             dim=1),
-                        #         dim=0)
-                        #     total_loss += kld_loss * args.kl_weight
-                        #     if log_stats:
-                        #         summary.add_scalar(f"Loss/KL Divergence", kld_loss)
 
                         features_ = features + torch.randn_like(features) * args.feature_noise
                         z_, _ = rec.encode(features_, noise=args.encoder_noise)
@@ -428,8 +372,14 @@ def train(rank, args, ddp_args):
                         if do_tomo:
                             s_ = s_[particle_groups]
 
-                        consistency_loss = similarity_loss(s, s_)
+                        similarities = similarity(s, s_)
+                        consistency_loss = similarities.mean()
+
                         if log_stats:
+                            consistency_loss_train = similarities[train_mask].mean()
+                            consistency_loss_valid = similarities[valid_mask].mean()
+                            summary.add_scalar(f"Loss/Consistency Train", consistency_loss_train)
+                            summary.add_scalar(f"Loss/Consistency Valid", consistency_loss_valid)
                             summary.add_scalar(f"Loss/Consistency", consistency_loss)
                         total_loss += consistency_loss * args.consistency_weight
 

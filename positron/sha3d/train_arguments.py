@@ -25,12 +25,12 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--z_size',
         help='Number of learnt representation dimensions.',
-        type=int, default=3
+        type=int, default=2
     )
     parser.add_argument(
         '--s_size',
         help='Number of structure basis.',
-        type=int, default=6
+        type=int, default=8
     )
 
     parser.add_argument(
@@ -124,13 +124,13 @@ def append_train_arguments(parser):
     )
 
     parser.add_argument(
-        '--s_l1_weight',
+        '--s_l1_weight', '--sl1',
         help='The weight for the L1 norm loss for S',
         type=range_limited_float_type(0), default=0.
     )
 
     parser.add_argument(
-        '--s_l2_weight',
+        '--s_l2_weight', '--sl2',
         help='The weight for the L2 norm loss for S',
         type=range_limited_float_type(0), default=0.0001
     )

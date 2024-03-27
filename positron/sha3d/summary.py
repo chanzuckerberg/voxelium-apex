@@ -222,11 +222,14 @@ def main(args):
     print("Loading modules...")
     summary = Summary.compose_from_logdir(args.logdir, state=args.state)
 
-    if args.mask is not None or args.mask != "":
-        print("Applying mask...")
-        summary.apply_mask(args.mask)
+    if args.mask is not None:
+        if os.path.isfile(args.mask):
+            print("Applying mask...")
+            summary.apply_mask(args.mask)
+        else:
+            print("WARNING: Could not find mask-file. Will continue, but file size will be larger.")
 
-    print("Saving to logdir...")
+    print("Saving summary to log directory...")
     summary.save_to_logdir(args.logdir, state_label=args.state, gzip=not args.no_gzip)
 
     print("Done!")

@@ -22,7 +22,7 @@ from matplotlib.widgets import PolygonSelector
 from matplotlib.path import Path
 
 from positron.base import get_spectral_indices, spectra_to_grid, dft, idft
-from positron.base.grid import load_mrc, save_mrc, fast_gaussian_filter
+from positron.base.grid import load_mrc, save_mrc, gaussian_blur
 from positron.base.plot import get_default_cmap
 from positron.base.torch_utils import pca_dim_reduction
 from positron.sha3d.summary import Summary
@@ -291,11 +291,10 @@ class Viewer:
 
     @torch.no_grad()
     def update_hm(self):
-        from scipy.ndimage import gaussian_filter
-        hm_smooth = gaussian_filter(self.hm_sharp, self.hm_sigma)
+        blur = gaussian_blur(self.hm_sharp, self.hm_sigma)
 
         l = self.hm_lim
-        self.ax_hm.imshow(hm_smooth, cmap=self.hm_cm, extent=(-l, l, l, -l))
+        self.ax_hm.imshow(blur, cmap=self.hm_cm, extent=(-l, l, l, -l))
 
         self.ax_hm.set_xlim([-l, l])
         self.ax_hm.set_ylim([-l, l])
@@ -378,6 +377,8 @@ class Viewer:
                     self.selected_ids.append(idx)
                     self.volumes.append(vol)
                     print("Selected point index", idx)
+                    print("S =", list(self.structure_factors[idx].cpu().detach().numpy()))
+                    print("Z =", list(self.embed[idx].cpu().detach().numpy()))
                     self.ax_hm.add_patch(circle)
                     state_change = True
 

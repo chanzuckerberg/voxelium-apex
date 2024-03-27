@@ -94,11 +94,11 @@ def cosine_similarity_loss2(anchor, target):
     return torch.log(1 + torch.sum(torch.exp(-anchor * target), dim=1)).mean()
 
 
-def similarity_loss(anchor, target):
+def similarity(anchor, target):
     norm = torch.cat([anchor, target], 0).std(0, keepdim=True) + 1e-12
     anchor = anchor / norm
     target = target / norm
-    return (anchor - target).square().mean()
+    return (anchor - target).square()
 
 
 def batch_triplet_loss(anchor, target, margin=0.1):
