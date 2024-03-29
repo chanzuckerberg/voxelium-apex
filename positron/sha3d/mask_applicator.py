@@ -64,7 +64,10 @@ def apply_solvent_mask(projector, masks, kernel_sizes=None, spectral_rescale=Non
         x = get_base_in_real_space(projector, base_index=base_index, spectral_rescale=rescale_backward)
 
         if kernel_size is None or kernel_size == 0:
-            x = x * mask
+            kernel = torch.tensor([0.2, 0.6, 0.2]).to(x.device)
+            x_filter = x * mask.pow(1./10.)
+            x_filter = apply_fast_gaussian_filter(x_filter, kernel)
+            x[mask < 1] = x_filter[mask < 1]
         else:
             kernel = make_gaussian_kernel(kernel_size).to(mask.device)
             x_filter = apply_fast_gaussian_filter(x, kernel)
