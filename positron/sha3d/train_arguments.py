@@ -7,28 +7,28 @@ def append_train_arguments(parser):
     parser.add_argument('--particle_diameter', help='size of circular mask (ang)', type=int, default=None)
     parser.add_argument('--circular_mask_thickness', help='thickness of mask (ang)', type=int, default=20)
     parser.add_argument('--batch_size', help='mini-batch size from training dataset', type=int, default=256)
-    parser.add_argument('--overwrite', action='store_true')
+    parser.add_argument('--overwrite', '--ow', action='store_true')
     parser.add_argument('--gpu', dest='gpu', type=str, default=None, help='gpu to use')
     parser.add_argument('--checkpoint_time', help='Minimum time in minutes between checkpoint saves', type=int,
                         default=10)
     parser.add_argument("--image_steps", type=int, default=500, help="Log tensorboard images every n steps")
     parser.add_argument("--stats_steps", type=int, default=100, help="Log tensorboard statistics every n steps")
-    parser.add_argument('--max_steps', dest='max_steps', type=int, default=int(1e9), help='number of steps to train')
-    parser.add_argument('--max_train_epochs', type=int, default=int(10), help='number of epochs to train')
-    parser.add_argument('--preload', action='store_true')
+    parser.add_argument('--max_steps', '--steps', dest='max_steps', type=int, default=int(1e9), help='number of steps to train')
+    parser.add_argument('--max_train_epochs', '--epochs', type=int, default=int(10), help='number of epochs to train')
+    parser.add_argument('--preload', '-p', action='store_true')
     parser.add_argument('--dont_finalize', action='store_true')
     parser.add_argument('--only_finalize', action='store_true')
     parser.add_argument('--pytorch_threads', type=int, default=6)
-    parser.add_argument('--dataloader_threads', type=int, default=4)
+    parser.add_argument('--dataloader_threads', '--dj', type=int, default=4)
     parser.add_argument('--tomo', action='store_true')
 
     parser.add_argument(
-        '--z_size',
+        '--z_size', '-z',
         help='Number of learnt representation dimensions.',
         type=int, default=2
     )
     parser.add_argument(
-        '--s_size',
+        '--s_size', '-s',
         help='Number of structure basis.',
         type=int, default=8
     )
@@ -44,23 +44,23 @@ def append_train_arguments(parser):
         action="store_true"
     )
     parser.add_argument(
-        '--solvent_mask',
+        '--solvent_mask', '--sm',
         help='MRC file with ones in the region that is not solvent (region of interest)',
+        type=str, default=None
+    )
+    parser.add_argument(
+        '--roi_mask', '--roi',
+        help='If a mask is provided, allow only structural heterogeneity inside the masked region.',
         type=str, default=None
     )
     parser.add_argument(
         '--mask_bevel',
         help='Smoothing kernel parameter for the mask edge.',
-        type=range_limited_float_type(0.1, 1), default=0.5
+        type=range_limited_float_type(0.1, 1), default=1.
     )
     parser.add_argument(
         '--subtract_mask',
         help='If a mask is provided, create a new particle stack where everything outside the mask is subtracted.',
-        type=str, default=None
-    )
-    parser.add_argument(
-        '--roi_mask',
-        help='If a mask is provided, allow only structural heterogeneity inside the masked region.',
         type=str, default=None
     )
     parser.add_argument(

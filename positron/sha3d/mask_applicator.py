@@ -53,7 +53,7 @@ def apply_solvent_mask(projector, masks, bevel=1., spectral_rescale=None):
         )
 
     bevel = np.clip(float(bevel), 0, 1)
-    kernel = torch.tensor([bevel, 1., bevel]).float().to(masks[0].device)
+    kernel = torch.tensor([bevel, 1., bevel]).float()
     kernel /= kernel.sum()
 
     for base_index in range(size):
@@ -62,9 +62,9 @@ def apply_solvent_mask(projector, masks, bevel=1., spectral_rescale=None):
             continue
         x = get_base_in_real_space(projector, base_index=base_index, spectral_rescale=rescale_backward)
 
-        x_filter = x * mask.pow(1./5.)  # Delay full mask edge dropout with 5 iterations
-        x_filter = apply_fast_gaussian_filter(x_filter, kernel)
-        x[mask < 1] = x_filter[mask < 1]
+        x_ = x * mask.pow(1./5.)  # Delay full mask edge drop off with 5 iterations
+        x_ = apply_fast_gaussian_filter(x_, kernel.to(x.device))
+        x[mask < 1] = x_[mask < 1]
 
         set_base_from_real_space(projector, x, base_index=base_index, spectral_rescale=rescale_forward)
 
@@ -76,6 +76,11 @@ class MaskApplicator:
         self.bevel = bevel
         do_solvent = solvent_mask is not None
         do_roi = roi_mask is not None
+
+        if do_solvent:
+            solvent_mask = solvent_mask.clip(0, 1)
+        if do_roi:
+            roi_mask = roi_mask.clip(0, 1)
 
         size = projector.input_size
         if do_solvent and do_roi:
