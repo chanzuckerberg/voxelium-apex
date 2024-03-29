@@ -14,7 +14,7 @@ def append_train_arguments(parser):
     parser.add_argument("--image_steps", type=int, default=500, help="Log tensorboard images every n steps")
     parser.add_argument("--stats_steps", type=int, default=100, help="Log tensorboard statistics every n steps")
     parser.add_argument('--max_steps', dest='max_steps', type=int, default=int(1e9), help='number of steps to train')
-    parser.add_argument('--max_train_epochs', type=int, default=int(50), help='number of epochs to train')
+    parser.add_argument('--max_train_epochs', type=int, default=int(10), help='number of epochs to train')
     parser.add_argument('--preload', action='store_true')
     parser.add_argument('--dont_finalize', action='store_true')
     parser.add_argument('--only_finalize', action='store_true')
@@ -100,30 +100,6 @@ def append_train_arguments(parser):
     )
 
     parser.add_argument(
-        '--z_contrastive_weight',
-        help='Contrastive learning weight for Z',
-        type=range_limited_float_type(0), default=1.
-    )
-
-    parser.add_argument(
-        '--z_contrastive_margin',
-        help='Contrastive learning margin for Z',
-        type=range_limited_float_type(0), default=0.
-    )
-
-    parser.add_argument(
-        '--s_contrastive_weight',
-        help='Contrastive learning weight for S',
-        type=range_limited_float_type(0), default=1.
-    )
-
-    parser.add_argument(
-        '--s_contrastive_margin',
-        help='Contrastive learning margin for S',
-        type=range_limited_float_type(0), default=0.
-    )
-
-    parser.add_argument(
         '--s_l1_weight', '--sl1',
         help='The weight for the L1 norm loss for S',
         type=range_limited_float_type(0), default=0.
@@ -137,14 +113,8 @@ def append_train_arguments(parser):
 
     parser.add_argument(
         '--consistency_weight', '--cw',
-        help='Consistency of the S vector',
+        help='Self consistency of the S vector',
         type=range_limited_float_type(0), default=1.
-    )
-
-    parser.add_argument(
-        '--kl_weight',
-        help='KL divergence weight',
-        type=range_limited_float_type(0), default=1e-4
     )
 
     parser.add_argument(
@@ -183,7 +153,6 @@ def append_train_arguments(parser):
         type=str, default="128,128,128,128"
     )
 
-    parser.add_argument('--do_sigma_weighting', action='store_true')
     parser.add_argument(
         "--dtype", 
         type=str, 

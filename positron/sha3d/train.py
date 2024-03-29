@@ -121,6 +121,8 @@ def train(rank, args, ddp_args):
         if not torch.any((0. < solvent_mask) & (solvent_mask < 1.)):
             print("\nWARNING: solvent mask should only contain values in the range (including) zero and one.\n")
 
+        # solvent_mask = solvent_mask.pow(1. / 10.)
+
     roi_mask = None
     if args.roi_mask is not None:
         roi_mask, _, _ = load_mrc(args.roi_mask)
@@ -128,6 +130,8 @@ def train(rank, args, ddp_args):
 
         if not torch.any((0. < roi_mask) & (roi_mask < 1.)):
             print("\nWARNING: ROI mask should only contain values in the range (including) zero and one.\n")
+
+        # roi_mask = roi_mask.pow(1./10.)
 
     subtract_mask = None
     if args.subtract_mask is not None:
@@ -373,15 +377,15 @@ def train(rank, args, ddp_args):
                             s_ = s_[particle_groups]
 
                         similarities = similarity(s, s_)
-                        consistency_loss = similarities.mean()
+                        consistency_loss_train = similarities[train_mask].mean()
 
                         if log_stats:
-                            consistency_loss_train = similarities[train_mask].mean()
-                            consistency_loss_valid = similarities[valid_mask].mean()
+                            consistency_loss_valid = similarities[~train_mask].mean()
                             summary.add_scalar(f"Loss/Consistency Train", consistency_loss_train)
                             summary.add_scalar(f"Loss/Consistency Valid", consistency_loss_valid)
-                            summary.add_scalar(f"Loss/Consistency", consistency_loss)
-                        total_loss += consistency_loss * args.consistency_weight
+                            summary.add_scalar(f"Loss/Consistency Diff",
+                                               consistency_loss_valid - consistency_loss_train)
+                        total_loss += consistency_loss_train * args.consistency_weight
 
                         total_loss.backward()
 
