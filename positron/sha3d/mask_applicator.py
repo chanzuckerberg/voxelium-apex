@@ -32,7 +32,7 @@ def apply_fast_gaussian_filter(grid, kernel):
 
 
 @torch.no_grad()
-def apply_solvent_mask(projector, masks, bevel=1., spectral_rescale=None):
+def apply_solvent_mask(projector, masks, spectral_rescale=None):
     size = projector.input_size
 
     if not isinstance(masks, list):
@@ -52,9 +52,8 @@ def apply_solvent_mask(projector, masks, bevel=1., spectral_rescale=None):
             max_r=size_to_maxr(projector.size)
         )
 
-    bevel = np.clip(float(bevel), 0, 1)
-    kernel = torch.tensor([bevel, 1., bevel]).float()
-    kernel /= kernel.sum()
+    kernel_size = 9
+    padding = kernel_size // 2
 
     for base_index in range(size):
         mask = masks[base_index]
@@ -62,18 +61,18 @@ def apply_solvent_mask(projector, masks, bevel=1., spectral_rescale=None):
             continue
         x = get_base_in_real_space(projector, base_index=base_index, spectral_rescale=rescale_backward)
 
-        x_ = x * mask.pow(1./5.)  # Delay full mask edge drop off with 5 iterations
-        x_ = apply_fast_gaussian_filter(x_, kernel.to(x.device))
-        x[mask < 1] = x_[mask < 1]
+        x[mask == 0] = 0
+        max_x = F.max_pool3d(x[None, None], kernel_size=kernel_size, stride=1, padding=padding)[0, 0]
+        max_x = max_x * mask
+        x = x.clip(max=max_x)
 
         set_base_from_real_space(projector, x, base_index=base_index, spectral_rescale=rescale_forward)
 
 
 class MaskApplicator:
-    def __init__(self, projector, solvent_mask=None, roi_mask=None, bevel=1.):
+    def __init__(self, projector, solvent_mask=None, roi_mask=None):
         self.projector = projector
         self.masks = None
-        self.bevel = bevel
         do_solvent = solvent_mask is not None
         do_roi = roi_mask is not None
 
@@ -99,7 +98,6 @@ class MaskApplicator:
             apply_solvent_mask(
                 projector=self.projector,
                 masks=self.masks,
-                bevel=self.bevel,
                 spectral_rescale=spectral_rescale
             )
 
