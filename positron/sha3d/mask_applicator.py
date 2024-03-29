@@ -32,14 +32,11 @@ def apply_fast_gaussian_filter(grid, kernel):
 
 
 @torch.no_grad()
-def apply_solvent_mask(projector, masks, kernel_sizes=None, spectral_rescale=None):
+def apply_solvent_mask(projector, masks, bevel=1., spectral_rescale=None):
     size = projector.input_size
 
     if not isinstance(masks, list):
         masks = [masks] * size
-
-    if not isinstance(kernel_sizes, list):
-        kernel_sizes = [kernel_sizes] * size
 
     rescale_backward, rescale_forward = None, None
     if spectral_rescale is not None:
@@ -55,44 +52,38 @@ def apply_solvent_mask(projector, masks, kernel_sizes=None, spectral_rescale=Non
             max_r=size_to_maxr(projector.size)
         )
 
+    bevel = np.clip(float(bevel), 0, 1)
+    kernel = torch.tensor([bevel, 1., bevel]).float().to(masks[0].device)
+    kernel /= kernel.sum()
+
     for base_index in range(size):
         mask = masks[base_index]
         if mask is None:
             continue
-        kernel_size = kernel_sizes[base_index]
-
         x = get_base_in_real_space(projector, base_index=base_index, spectral_rescale=rescale_backward)
 
-        if kernel_size is None or kernel_size == 0:
-            kernel = torch.tensor([0.2, 0.6, 0.2]).to(x.device)
-            x_filter = x * mask.pow(1./10.)
-            x_filter = apply_fast_gaussian_filter(x_filter, kernel)
-            x[mask < 1] = x_filter[mask < 1]
-        else:
-            kernel = make_gaussian_kernel(kernel_size).to(mask.device)
-            x_filter = apply_fast_gaussian_filter(x, kernel)
-            x = x * mask + x_filter * (1 - mask)
+        x_filter = x * mask.pow(1./5.)  # Delay full mask edge dropout with 5 iterations
+        x_filter = apply_fast_gaussian_filter(x_filter, kernel)
+        x[mask < 1] = x_filter[mask < 1]
 
         set_base_from_real_space(projector, x, base_index=base_index, spectral_rescale=rescale_forward)
 
 
 class MaskApplicator:
-    def __init__(self, projector, solvent_mask=None, roi_mask=None, solvent_smoothing=0.):
+    def __init__(self, projector, solvent_mask=None, roi_mask=None, bevel=1.):
         self.projector = projector
         self.masks = None
+        self.bevel = bevel
         do_solvent = solvent_mask is not None
         do_roi = roi_mask is not None
 
         size = projector.input_size
         if do_solvent and do_roi:
             self.masks = [solvent_mask] + [roi_mask] * (size - 1)
-            self.solvent_smoothing = [solvent_smoothing] + [None] * (size - 1)
         elif do_solvent:
             self.masks = [solvent_mask] * size
-            self.solvent_smoothing = [solvent_smoothing] * size
         elif do_roi:
             self.masks = [None] + [roi_mask] * (size - 1)
-            self.solvent_smoothing = [None] * size
 
         if self.masks is not None:
             apply_solvent_mask(projector, self.masks)
@@ -103,7 +94,7 @@ class MaskApplicator:
             apply_solvent_mask(
                 projector=self.projector,
                 masks=self.masks,
-                kernel_sizes=self.solvent_smoothing,
+                bevel=self.bevel,
                 spectral_rescale=spectral_rescale
             )
 
