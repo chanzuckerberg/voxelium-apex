@@ -26,7 +26,7 @@ def mean_over_groups(data, groups=None):
 
 
 @torch.no_grad()
-def get_map_features(x, y, c, wx, wy, x0=None, eps=1e-12, groups=None):
+def get_map_features(x, y, c, wx, wy, eps=1e-12, groups=None):
     xT = torch.conj(x)
     c2 = c.square()
 
@@ -40,35 +40,9 @@ def get_map_features(x, y, c, wx, wy, x0=None, eps=1e-12, groups=None):
     # xT @ x * (c2 * wy + wx) * z = xT @ wy * c * y
     lhs = torch.einsum('bnk, bmk -> bnm', xT, x * (c2 * wy + wx).unsqueeze(1))
     lhs = mean_over_groups(lhs, groups)
-    if x0 is None:
-        rhs = torch.einsum('bnk, bk -> bn', xT, wy * c * y)
-        rhs = mean_over_groups(rhs, groups)
-        return solve(lhs, rhs)
-    else:
-        # rhs = torch.einsum('bnk, bk -> bn', xT, wy * (c * y - c2 * x0))
-        #
-        # a = solve(lhs, rhs)
-        # a = torch.complex(a, torch.zeros_like(a))
-        # xa = torch.einsum('bnk, bn -> bk', x, a)
-        #
-        # x0T = torch.conj(x0)
-        # lhs0 = torch.real(torch.einsum('bk, bk -> b', x0T, x0 * (c2 * wy + wx)))
-        # rhs0 = torch.real(torch.einsum('bk, bk -> b', x0T, wy * (c * y - c2 * xa)))
-        # a0 = (rhs0 / (lhs0 + eps)).unsqueeze(1)
-        # x0 *= a0
-        #
-        # rhs = torch.einsum('bnk, bk -> bn', xT, wy * (c * y - c2 * x0))
-        # return solve(lhs, rhs)
-
-        # x0T = torch.conj(x0)
-        # lhs0 = torch.real(torch.einsum('bk, bk -> b', x0T, x0 * (c2 * wy + wx)))
-        # rhs0 = torch.real(torch.einsum('bk, bk -> b', x0T, wy * (c * y)))
-        # a0 = rhs0.mean() / (lhs0.mean() + eps)
-        # x0 = x0 * a0
-
-        rhs = torch.einsum('bnk, bk -> bn', xT, wy * (c * y - c2 * x0))
-        rhs = mean_over_groups(rhs, groups)
-        return solve(lhs, rhs)
+    rhs = torch.einsum('bnk, bk -> bn', xT, wy * c * y)
+    rhs = mean_over_groups(rhs, groups)
+    return solve(lhs, rhs)
 
 
 def spectra_to_masked_grid(
@@ -126,13 +100,11 @@ class FeatureExtractor:
             decoder,
             voxel_size: float,
             bandpass: List[Tuple[int, int]],
-            do_roi=False,
             image_max_r: int = None,
             beta: float = 0.1,
             eps: float = 1e-6
     ):
         self.decoder = decoder
-        self.do_roi = do_roi
         self.voxel_size = voxel_size
         self.image_max_r = image_max_r
         self.bandpass = bandpass
@@ -162,31 +134,16 @@ class FeatureExtractor:
             x_ = apply_spectral_mask(x, minr=minr, maxr=maxr, view_as_complex=True)
             x_ = x_.view([batch_size, s_size, x_.shape[-1]])
 
-            if self.do_roi:
-                x0_ = x_[:, 0]
-                if s0 is None:
-                    x0_ = x0_ * self.s0
-                else:
-                    x0_ = x0_ * s0[:, None]
-                x_ = x_[:, 1:]
-            else:
-                x0_ = None
-
             y_ = apply_spectral_mask(y, minr=minr, maxr=maxr, view_as_complex=True)
             c_ = apply_spectral_mask(c, minr=minr, maxr=maxr)
 
             wx_ = apply_spectral_mask(wx, batched=False, minr=minr, maxr=maxr)[None]
             wy_ = apply_spectral_mask(wy, batched=False, minr=minr, maxr=maxr)[None]
 
-            f = get_map_features(x=x_, y=y_, c=c_, wy=wy_, wx=wx_, x0=x0_, groups=groups)
-
-            if self.do_roi:
-                f = torch.cat([f, torch.zeros(f.shape[0], 1).to(f.device)], 1)
+            f = get_map_features(x=x_, y=y_, c=c_, wy=wy_, wx=wx_, groups=groups)
 
             map_features.append(f)
 
         features = torch.cat(map_features, 1)
         return features
 
-    def track_s0(self, s0):
-        self.s0 = self.s0 * 0.9 + s0.mean() * 0.1

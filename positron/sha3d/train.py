@@ -187,8 +187,7 @@ def train(rank, args, ddp_args):
         decoder=rec.decoder,
         voxel_size=pixel_size,
         bandpass=rec.feature_bandpass,
-        image_max_r=image_max_r,
-        do_roi=roi_mask is not None
+        image_max_r=image_max_r
     )
 
     solvent_mask_applicator = MaskApplicator(
@@ -274,12 +273,8 @@ def train(rank, args, ddp_args):
                 x_noise_pow = regularizer.get_x_noise()
                 snr = y_weight * x_signal_pow
 
-                s0 = None
-                if epoch >= 2:
-                    s0 = hvc.get_metadata('s', particle_idx)[:, 0].to(device)
-
                 features = feature_extractor(
-                    hv=hv, y=y_ft, wy=snr, wx=x_noise_pow, accumulate_stats=not finalize, s0=s0, groups=particle_groups)
+                    hv=hv, y=y_ft, wy=snr, wx=x_noise_pow, accumulate_stats=not finalize, groups=particle_groups)
 
                 if log_stats:
                     summary.add_scalar("Features/mean", features.mean())
@@ -310,8 +305,6 @@ def train(rank, args, ddp_args):
                     subtraction_helper(s, sample, hv)
 
                 if not finalize:
-                    feature_extractor.track_s0(s[:, 0])
-
                     s_retention(logit=s, labels=train_mask, make_summary=log_stats)
                     if log_stats:
                         summary.add_scalars(s_retention.get_summary())
