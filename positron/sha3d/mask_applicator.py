@@ -61,10 +61,9 @@ def apply_solvent_mask(projector, masks, spectral_rescale=None):
             continue
         x = get_base_in_real_space(projector, base_index=base_index, spectral_rescale=rescale_backward)
 
-        x[mask == 0] = 0
-        max_x = F.max_pool3d(x[None, None], kernel_size=kernel_size, stride=1, padding=padding)[0, 0]
+        max_x = F.max_pool3d(x.abs()[None, None], kernel_size=kernel_size, stride=1, padding=padding)[0, 0]
         max_x = max_x * mask
-        x = x.clip(max=max_x)
+        x = x.clip(min=-max_x, max=max_x)
 
         set_base_from_real_space(projector, x, base_index=base_index, spectral_rescale=rescale_forward)
 
