@@ -194,7 +194,8 @@ def train(rank, args, ddp_args):
     solvent_mask_applicator = MaskApplicator(
         rec.decoder.projector,
         solvent_mask=solvent_mask,
-        roi_mask=roi_mask
+        roi_mask=roi_mask,
+        maxpool_fuse=args.maxpool_fuse
     )
 
     subtract_during_finalize = subtract_mask is not None

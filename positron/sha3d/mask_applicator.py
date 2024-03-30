@@ -31,8 +31,26 @@ def apply_fast_gaussian_filter(grid, kernel):
     return fast_gaussian_filter(grid[None, None], kernel=kernel)[0, 0]
 
 
+def apply_maxpool_fuse(x, mask, kernel_size=9):
+    padding = kernel_size // 2
+    max_x = F.max_pool3d(x.abs()[None, None], kernel_size=kernel_size, stride=1, padding=padding)[0, 0]
+    max_x = max_x * mask
+    x = x.clip(min=-max_x, max=max_x)
+    return x
+
+
+def apply_smooth_fuse(x, mask):
+    kernel = torch.ones(3).to(x.device)
+    kernel /= kernel.sum()
+    x[mask == 0] = 0
+    x[mask < 0.5] *= 0.9
+    x_ = apply_fast_gaussian_filter(x, kernel.to(x.device))
+    x = x * mask + x_ * (1 - mask)
+    return x
+
+
 @torch.no_grad()
-def apply_solvent_mask(projector, masks, spectral_rescale=None):
+def apply_solvent_mask(projector, masks, spectral_rescale=None, maxpool_fuse=False):
     size = projector.input_size
 
     if not isinstance(masks, list):
@@ -52,28 +70,27 @@ def apply_solvent_mask(projector, masks, spectral_rescale=None):
             max_r=size_to_maxr(projector.size)
         )
 
-    kernel_size = 9
-    padding = kernel_size // 2
-
     for base_index in range(size):
         mask = masks[base_index]
         if mask is None:
             continue
         x = get_base_in_real_space(projector, base_index=base_index, spectral_rescale=rescale_backward)
 
-        max_x = F.max_pool3d(x.abs()[None, None], kernel_size=kernel_size, stride=1, padding=padding)[0, 0]
-        max_x = max_x * mask
-        x = x.clip(min=-max_x, max=max_x)
+        if maxpool_fuse:
+            x = apply_maxpool_fuse(x, mask)
+        else:
+            x = apply_smooth_fuse(x, mask)
 
         set_base_from_real_space(projector, x, base_index=base_index, spectral_rescale=rescale_forward)
 
 
 class MaskApplicator:
-    def __init__(self, projector, solvent_mask=None, roi_mask=None):
+    def __init__(self, projector, solvent_mask=None, roi_mask=None, maxpool_fuse=False):
         self.projector = projector
         self.masks = None
         do_solvent = solvent_mask is not None
         do_roi = roi_mask is not None
+        self.maxpool_fuse = maxpool_fuse
 
         if do_solvent:
             solvent_mask = solvent_mask.clip(0, 1)
@@ -97,6 +114,7 @@ class MaskApplicator:
             apply_solvent_mask(
                 projector=self.projector,
                 masks=self.masks,
-                spectral_rescale=spectral_rescale
+                spectral_rescale=spectral_rescale,
+                maxpool_fuse=self.maxpool_fuse
             )
 
