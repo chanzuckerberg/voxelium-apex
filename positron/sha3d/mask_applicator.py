@@ -50,7 +50,7 @@ def apply_smooth_fuse(x, mask):
 
 
 @torch.no_grad()
-def apply_solvent_mask(projector, masks, spectral_rescale=None, maxpool_fuse=False):
+def apply_solvent_mask(projector, masks, spectral_rescale=None, initial=False):
     size = projector.input_size
 
     if not isinstance(masks, list):
@@ -76,8 +76,8 @@ def apply_solvent_mask(projector, masks, spectral_rescale=None, maxpool_fuse=Fal
             continue
         x = get_base_in_real_space(projector, base_index=base_index, spectral_rescale=rescale_backward)
 
-        if maxpool_fuse:
-            x = apply_maxpool_fuse(x, mask)
+        if initial:
+            x *= mask
         else:
             x = apply_smooth_fuse(x, mask)
 
@@ -85,12 +85,11 @@ def apply_solvent_mask(projector, masks, spectral_rescale=None, maxpool_fuse=Fal
 
 
 class MaskApplicator:
-    def __init__(self, projector, solvent_mask=None, roi_mask=None, maxpool_fuse=False):
+    def __init__(self, projector, solvent_mask=None, roi_mask=None):
         self.projector = projector
         self.masks = None
         do_solvent = solvent_mask is not None
         do_roi = roi_mask is not None
-        self.maxpool_fuse = maxpool_fuse
 
         if do_solvent:
             solvent_mask = solvent_mask.clip(0, 1)
@@ -106,7 +105,7 @@ class MaskApplicator:
             self.masks = [None] + [roi_mask] * (size - 1)
 
         if self.masks is not None:
-            apply_solvent_mask(projector, self.masks)
+            apply_solvent_mask(projector, self.masks, initial=True)
 
     @torch.no_grad()
     def __call__(self, spectral_rescale=None):
@@ -114,7 +113,6 @@ class MaskApplicator:
             apply_solvent_mask(
                 projector=self.projector,
                 masks=self.masks,
-                spectral_rescale=spectral_rescale,
-                maxpool_fuse=self.maxpool_fuse
+                spectral_rescale=spectral_rescale
             )
 

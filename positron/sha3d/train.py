@@ -193,8 +193,7 @@ def train(rank, args, ddp_args):
     solvent_mask_applicator = MaskApplicator(
         rec.decoder.projector,
         solvent_mask=solvent_mask,
-        roi_mask=roi_mask,
-        maxpool_fuse=args.maxpool_fuse
+        roi_mask=roi_mask
     )
 
     subtract_during_finalize = subtract_mask is not None
@@ -354,6 +353,12 @@ def train(rank, args, ddp_args):
                         if log_stats:
                             summary.add_scalar(f"Loss/Regularization", regularization_loss)
                         total_loss += regularization_loss
+
+                        if args.z_l2_weight > 0:
+                            z_norm_loss = z.square().sum(1).mean()
+                            total_loss += z_norm_loss * args.z_l2_weight
+                            if log_stats:
+                                summary.add_scalar(f"Loss/Z L2", z_norm_loss)
 
                         if args.s_l2_weight > 0:
                             s_norm_loss = s.square().sum(1).mean()
