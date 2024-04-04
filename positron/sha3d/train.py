@@ -289,9 +289,8 @@ def train(rank, args, ddp_args):
                     f = features
                 hvc.set_metadata('feature', particle_idx, f)
 
-                features_ = features if finalize else features + torch.randn_like(features) * args.feature_noise
-                z, _ = rec.encode(features_, noise=0 if finalize else args.encoder_noise)
-                s = rec.s_encoder(z, noise=0 if finalize else args.decoder_noise)
+                z, _ = rec.encode(features)
+                s = rec.s_encoder(z)
 
                 if do_tomo:
                     z = z[particle_groups]
@@ -347,12 +346,19 @@ def train(rank, args, ddp_args):
 
                         fsc_spectrum = regularizer.get_fsc_spectrum().clip(0.01, 0.99)
 
-                        regularization_weight = Cache.spectra_to_grids(
-                            1 - fsc_spectrum, hv['ctfs_'].shape[1:], image_max_r)
-                        regularization_loss = torch.mean(x_ft.square().sum(-1) * regularization_weight[None])
-                        if log_stats:
-                            summary.add_scalar(f"Loss/Regularization", regularization_loss)
-                        total_loss += regularization_loss
+                        if args.regularization > 0:
+                            regularization_weight = Cache.spectra_to_grids(
+                                1 - fsc_spectrum, hv['ctfs_'].shape[1:], image_max_r)
+                            x_ = torch.view_as_complex(x_ft)
+                            regularization_w = x_.abs().square() * regularization_weight
+                            regularization_loss = (
+                                    regularization_w[:, spectral_mask].mean(0).sum() /
+                                    (regularization_weight[spectral_mask].sum() + 1e-12)
+                            )
+
+                            if log_stats:
+                                summary.add_scalar(f"Loss/Regularization", regularization_loss)
+                            total_loss += regularization_loss * args.regularization
 
                         if args.z_l2_weight > 0:
                             z_norm_loss = z.square().sum(1).mean()
