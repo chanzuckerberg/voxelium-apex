@@ -273,7 +273,7 @@ def train(rank, args, ddp_args):
                 snr = y_weight * x_signal_pow
 
                 features = feature_extractor(
-                    hv=hv, y=y_ft, wy=snr, wx=x_noise_pow, accumulate_stats=not finalize, groups=particle_groups)
+                    hv=hv, y=y_ft, wy=snr, wx=x_noise_pow, groups=particle_groups)
 
                 if log_stats:
                     summary.add_scalar("Features/mean", features.mean())
@@ -283,10 +283,7 @@ def train(rank, args, ddp_args):
 
                 invert_timing = time.time() - tt
 
-                if do_tomo:
-                    f = features[particle_groups]
-                else:
-                    f = features
+                f = features[particle_groups] if do_tomo else features
                 hvc.set_metadata('feature', particle_idx, f)
 
                 z, _ = rec.encode(features)
@@ -379,16 +376,17 @@ def train(rank, args, ddp_args):
                         if do_tomo:
                             s_ = s_[particle_groups]
 
-                        similarities = similarity(s, s_)
-                        consistency_loss_train = similarities[train_mask].mean()
+                        if args.consistency_weight > 0:
+                            similarities = similarity(s, s_)
+                            consistency_loss_train = similarities[train_mask].mean()
 
-                        if log_stats:
-                            consistency_loss_valid = similarities[~train_mask].mean()
-                            summary.add_scalar(f"Loss/Consistency Train", consistency_loss_train)
-                            summary.add_scalar(f"Loss/Consistency Valid", consistency_loss_valid)
-                            summary.add_scalar(f"Loss/Consistency Diff",
-                                               consistency_loss_valid - consistency_loss_train)
-                        total_loss += consistency_loss_train * args.consistency_weight
+                            if log_stats:
+                                consistency_loss_valid = similarities[~train_mask].mean()
+                                summary.add_scalar(f"Loss/Consistency Train", consistency_loss_train)
+                                summary.add_scalar(f"Loss/Consistency Valid", consistency_loss_valid)
+                                summary.add_scalar(f"Loss/Consistency Diff",
+                                                   consistency_loss_valid - consistency_loss_train)
+                            total_loss += consistency_loss_train * args.consistency_weight
 
                         total_loss.backward()
 

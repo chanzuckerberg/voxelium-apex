@@ -115,7 +115,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--regularization', '--reg',
         help='Output power regularization',
-        type=range_limited_float_type(0), default=1
+        type=range_limited_float_type(0), default=0.
     )
 
     parser.add_argument(
@@ -127,13 +127,13 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--encoder_noise',
         help='Contrastive learning model layer augmentation noise',
-        type=range_limited_float_type(0), default=0.
+        type=range_limited_float_type(0), default=0.01
     )
 
     parser.add_argument(
         '--decoder_noise',
         help='Contrastive learning model layer augmentation noise',
-        type=range_limited_float_type(0), default=0.
+        type=range_limited_float_type(0), default=0.01
     )
 
     parser.add_argument(

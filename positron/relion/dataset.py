@@ -171,7 +171,7 @@ class RelionDataset:
 
         nr_particles = len(particles['rlnImageName'])
 
-        part_group_names = np.full(nr_particles, None, dtype=object)
+        part_group_names = np.full(nr_particles, "", dtype=object)
         use_group_names = False
 
         self.part_og_idx = np.full(nr_particles, -1, dtype=int)

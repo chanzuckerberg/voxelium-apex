@@ -117,7 +117,7 @@ class FeatureExtractor:
         self.s0 = 1
 
     @torch.no_grad()
-    def __call__(self, hv, y, wy, wx, accumulate_stats=True, s0=None, groups=None):
+    def __call__(self, hv, y, wy, wx, groups=None):
         c = hv['ctfs_']
         batch_size = c.shape[0]
         grid_shape = list(c.shape[1:])
