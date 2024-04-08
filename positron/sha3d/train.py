@@ -286,8 +286,8 @@ def train(rank, args, ddp_args):
                 f = features[particle_groups] if do_tomo else features
                 hvc.set_metadata('feature', particle_idx, f)
 
-                z, _ = rec.encode(features)
-                s = rec.s_encoder(z)
+                z, _ = rec.z_encode(features)
+                s = rec.s_encode(z)
 
                 if do_tomo:
                     z = z[particle_groups]
@@ -309,8 +309,6 @@ def train(rank, args, ddp_args):
                         summary.add_scalar(f"Z/mean", z.mean())
                         summary.add_scalar(f"S/std", s.std())
                         summary.add_scalar(f"S/mean", s.mean())
-                        summary.add_scalar(f"S/S norm mean", s.square().sum(1).mean())
-                        summary.add_scalar(f"S/S norm std", s.square().sum(1).std())
                         summary.add_scalar(f"S0/std", s[:, 0].std())
                         summary.add_scalar(f"S0/mean", s[:, 0].mean())
 
@@ -357,26 +355,30 @@ def train(rank, args, ddp_args):
                                 summary.add_scalar(f"Loss/Regularization", regularization_loss)
                             total_loss += regularization_loss * args.regularization
 
-                        if args.z_l2_weight > 0:
-                            z_norm_loss = z.square().sum(1).mean()
-                            total_loss += z_norm_loss * args.z_l2_weight
+                        if args.z_lp_weight > 0:
+                            z_norm_loss = z.square().sum(1).sqrt().mean().pow(args.zp * 2)
+                            total_loss += z_norm_loss * args.z_lp_weight
                             if log_stats:
-                                summary.add_scalar(f"Loss/Z L2", z_norm_loss)
+                                summary.add_scalar(f"Loss/Z Lp", z_norm_loss)
 
-                        if args.s_l2_weight > 0:
-                            s_norm_loss = s.square().sum(1).mean()
-                            total_loss += s_norm_loss * args.s_l2_weight
+                        if args.s_lp_weight > 0:
+                            s_norm_loss = (s.square().sum(1).sqrt().mean() - 0.1).pow(args.sp * 2)
+                            total_loss += s_norm_loss * args.s_lp_weight
                             if log_stats:
-                                summary.add_scalar(f"Loss/S L2", s_norm_loss)
+                                summary.add_scalar(f"Loss/S Lp", s_norm_loss)
+
+                        if log_stats:
+                            summary.add_scalar(f"S/S norm mean", s.square().sum(1).sqrt().mean())
+                            summary.add_scalar(f"S/S norm std", s.square().sum(1).sqrt().std())
 
                         features_ = features + torch.randn_like(features) * args.feature_noise
-                        z_, _ = rec.encode(features_, noise=args.encoder_noise)
-                        s_ = rec.s_encoder(z_, noise=args.decoder_noise)
+                        z_, _ = rec.z_encode(features_, noise=args.encoder_noise)
+                        s_ = rec.s_encode(z_, noise=args.decoder_noise)
 
                         if do_tomo:
                             s_ = s_[particle_groups]
 
-                        if args.consistency_weight > 0:
+                        if args.consistency_weight > 0 and epoch > 0:
                             similarities = similarity(s, s_)
                             consistency_loss_train = similarities[train_mask].mean()
 

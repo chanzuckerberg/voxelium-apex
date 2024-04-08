@@ -174,11 +174,15 @@ class ModelContainer(nn.Module):
         else:
             return (features - self.features_mean) / (self.features_std + eps)
 
-    def encode(self, x, noise=0):
+    def z_encode(self, x, noise=0):
         out = self.z_encoder(x, noise=noise)
         mu = out[:, :out.size(1) // 2]
         log_var = out[:, out.size(1) // 2:]
         return mu, log_var
+
+    def s_encode(self, x, noise=0):
+        return self.s_encoder(x, noise=noise)
+        # return self.s_encoder(x, noise=noise)
 
     def vae(self, x, encoder_noise=0, decoder_noise=0, reparam=False):
         mu, log_var = self.encode(x, noise=encoder_noise)

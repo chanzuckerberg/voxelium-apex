@@ -95,21 +95,27 @@ def append_train_arguments(parser):
     )
 
     parser.add_argument(
-        '--s_l1_weight', '--sl1',
-        help='The weight for the L1 norm loss for S',
-        type=range_limited_float_type(0), default=0.
+        '--s_lp_weight', '--sw',
+        help='The weight for the Lp norm loss for S',
+        type=range_limited_float_type(0), default=1.
     )
 
     parser.add_argument(
-        '--s_l2_weight', '--sl2',
-        help='The weight for the L2 norm loss for S',
-        type=range_limited_float_type(0), default=0.
+        '--sp',
+        help='The power in the Lp norm loss for S',
+        type=range_limited_int_type(1), default=4
     )
 
     parser.add_argument(
-        '--z_l2_weight', '--zl2',
-        help='The weight for the L2 norm loss for Z',
-        type=range_limited_float_type(0), default=0.0001
+        '--z_lp_weight', '--zw',
+        help='The weight for the Lp norm loss for Z',
+        type=range_limited_float_type(0), default=1e-5
+    )
+
+    parser.add_argument(
+        '--zp',
+        help='The power in the Lp norm loss for Z',
+        type=range_limited_int_type(1), default=4
     )
 
     parser.add_argument(
