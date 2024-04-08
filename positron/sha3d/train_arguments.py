@@ -103,7 +103,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--sp',
         help='The power in the Lp norm loss for S',
-        type=range_limited_int_type(1), default=4
+        type=range_limited_int_type(1), default=8
     )
 
     parser.add_argument(
@@ -115,7 +115,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--zp',
         help='The power in the Lp norm loss for Z',
-        type=range_limited_int_type(1), default=4
+        type=range_limited_int_type(1), default=2
     )
 
     parser.add_argument(

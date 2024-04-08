@@ -356,13 +356,15 @@ def train(rank, args, ddp_args):
                             total_loss += regularization_loss * args.regularization
 
                         if args.z_lp_weight > 0:
-                            z_norm_loss = z.square().sum(1).sqrt().mean().pow(args.zp * 2)
+                            p = args.zp + args.zp % 2  # Make even
+                            z_norm_loss = z.square().sum(1).mean().pow(p)
                             total_loss += z_norm_loss * args.z_lp_weight
                             if log_stats:
                                 summary.add_scalar(f"Loss/Z Lp", z_norm_loss)
 
                         if args.s_lp_weight > 0:
-                            s_norm_loss = (s.square().sum(1).sqrt().mean() - 0.1).pow(args.sp * 2)
+                            p = args.sp + args.sp % 2  # Make even
+                            s_norm_loss = (s.square().sum(1).sqrt().mean() - 0.1).pow(p)
                             total_loss += s_norm_loss * args.s_lp_weight
                             if log_stats:
                                 summary.add_scalar(f"Loss/S Lp", s_norm_loss)
