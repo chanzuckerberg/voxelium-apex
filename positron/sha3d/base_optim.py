@@ -85,7 +85,9 @@ class BaseOptimizer(Optimizer):
 
                 for i in range(nr_base):
                     p_square = p[:, i].square()
-                    p[i].mul_(1 / (nr_base * p_square.mean().sqrt() + 1e-12))
+                    scale_fatcor = 1. / (nr_base * p_square.mean().sqrt() + 1e-12)
+                    p[i].mul_(scale_fatcor)
+                    exp_avg[i].mul_(scale_fatcor)
                     state['spectral_power'][i] = grid_spectral_average(p_square.mean(-1), sidx).sqrt()
 
                 # p.mul_(torch.sqrt(1 / (state['spectral_power'].mean(dim=1)[None, :, None] + 1e-12)))

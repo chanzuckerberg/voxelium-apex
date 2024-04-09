@@ -12,9 +12,9 @@ from datetime import datetime
 from torch.utils.data import DataLoader
 
 from positron.sha3d.feature_extractor import FeatureExtractor
-from positron.sha3d.loss_functions import batch_triplet_loss, bsc_loss, tsne_loss, similarity
+from positron.sha3d.loss_functions import similarity
 from positron.sha3d.mask_applicator import MaskApplicator
-from positron.sha3d.regularizer import Regularizer
+from positron.sha3d.spectral_statistics import SpectralStatistics
 from positron.base.single_particle_validation_sampler import SingleParticleValidationSampler
 from positron.base.subtomo_validation_sampler import SubtomoValidationSampler
 from positron.sha3d.subtraction import SubtractionHelper
@@ -171,7 +171,7 @@ def train(rank, args, ddp_args):
 
     last_save_time = time.time()
 
-    regularizer = Regularizer(
+    stats = SpectralStatistics(
         image_size=image_size,
         filter_cutoff_idx=spectral_index_from_resolution(args.filter_resolution, image_size, pixel_size),
         lam=args.lam
@@ -267,9 +267,9 @@ def train(rank, args, ddp_args):
                 tt = time.time()
 
                 # TODO Clean-up
-                y_weight = regularizer.get_y_weight()
-                x_signal_pow = regularizer.get_x_signal()
-                x_noise_pow = regularizer.get_x_noise()
+                y_weight = stats.get_y_weight()
+                x_signal_pow = stats.get_x_signal()
+                x_noise_pow = stats.get_x_noise()
                 snr = y_weight * x_signal_pow
 
                 features = feature_extractor(
@@ -325,12 +325,13 @@ def train(rank, args, ddp_args):
                         device=device
                     )
 
-                    y_weight = regularizer.get_y_weight(eps=1e-3)
+                    y_weight = stats.get_y_weight(eps=1e-3)
                     weight = y_weight / (y_weight.mean() + 1e-3)
                     weight_grid = Cache.spectra_to_grids(weight, hv['ctfs_'].shape[1:], image_max_r)
                     x_ = torch.view_as_complex(x)
                     y_ft_ = torch.view_as_complex(y_ft)
                     square_error_train = (x_[train_mask] - y_ft_[train_mask].detach()).abs().square()
+                    square_error_valid = (x_[~train_mask] - y_ft_[~train_mask].detach()).abs().square()
                     square_error_train_w = square_error_train * weight_grid[None]
                     weighted_mse = (
                             square_error_train_w[:, spectral_mask].mean(0).sum() /
@@ -339,7 +340,7 @@ def train(rank, args, ddp_args):
                     if step > 0:
                         total_loss = weighted_mse
 
-                        fsc_spectrum = regularizer.get_fsc_spectrum().clip(0.01, 0.99)
+                        fsc_spectrum = stats.get_fsc_spectrum().clip(0.01, 0.99)
 
                         if args.regularization > 0:
                             regularization_weight = Cache.spectra_to_grids(
@@ -416,10 +417,11 @@ def train(rank, args, ddp_args):
                             x_ft_shift = fourier_shift_2d(x_ft, shifts)
                             x_ = x_ft_shift * ctf_
 
-                        regularizer.update(
+                        stats.update(
                             x=x_, y=y_, ctf2=avg_ctf2,
                             train_mask=train_mask_,
                             valid_mask=~train_mask_,
+                            mse=square_error_valid.mean(0),
                             momentum=0.99
                         )
 
@@ -429,7 +431,7 @@ def train(rank, args, ddp_args):
                         if log_images:
                             summary.write_images(x_ft, y_ft, hv['ctfs_'])
 
-                            reg = regularizer.get_spectral_summary()
+                            reg = stats.get_spectral_summary()
                             for key in reg:
                                 summary.add_figure(key, make_series_line_fig(reg[key]))
 

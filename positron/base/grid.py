@@ -356,7 +356,7 @@ def random_blob_on_grid(size, positive, negative, sigma, device="cpu"):
         coord = torch.clip(torch.randn(3, negative) * size / 8. + size // 2, 0, size - 1).to(device).long()
         grid[coord[0], coord[1], coord[2]] -= 1
 
-    grid = fast_gaussian_filter(grid.unsqueeze(0).unsqueeze(0), kernel_size=sigma).squeeze(0).squeeze(0)
+    grid = fast_gaussian_filter(grid.unsqueeze(0).unsqueeze(0), kernel_sigma=sigma).squeeze(0).squeeze(0)
     return grid
 
 
