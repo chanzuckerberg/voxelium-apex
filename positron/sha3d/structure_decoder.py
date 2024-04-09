@@ -24,7 +24,11 @@ class StructureDecoder(torch.nn.Module):
             input_size=s_size,
             do_bias=False
         )
-        self.projector.weight.data.normal_(std=.01)
+        p = self.projector.weight.data
+        p.normal_()
+        for i in range(p.size(1)):
+            p_square = p[:, i].square()
+            p[i].mul_(1 / (p.size(1) * p_square.mean().sqrt() + 1e-12))
 
     def _load_cache(self, max_r, is_3d):
         hashable = str(max_r) + ("_3d" if is_3d else "_2d")

@@ -68,7 +68,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--lr',
         help='Learning rate of the structure decoder',
-        type=range_limited_float_type(0), default=0.001
+        type=range_limited_float_type(0), default=0.01
     )
     parser.add_argument(
         '--begin_lr',
@@ -79,7 +79,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--lr_encoder',
         help='Learning rate of the encoder',
-        type=range_limited_float_type(0), default=0.0004
+        type=range_limited_float_type(0), default=0.001
     )
 
     parser.add_argument(
@@ -92,30 +92,6 @@ def append_train_arguments(parser):
         '--grad_clip',
         help='Gradient clipping of the encoder',
         type=range_limited_float_type(0), default=1e-2
-    )
-
-    parser.add_argument(
-        '--s_lp_weight', '--sw',
-        help='The weight for the Lp norm loss for S',
-        type=range_limited_float_type(0), default=1.
-    )
-
-    parser.add_argument(
-        '--sp',
-        help='The power in the Lp norm loss for S',
-        type=range_limited_int_type(1), default=8
-    )
-
-    parser.add_argument(
-        '--z_lp_weight', '--zw',
-        help='The weight for the Lp norm loss for Z',
-        type=range_limited_float_type(0), default=1e-5
-    )
-
-    parser.add_argument(
-        '--zp',
-        help='The power in the Lp norm loss for Z',
-        type=range_limited_int_type(1), default=2
     )
 
     parser.add_argument(
@@ -133,13 +109,13 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--encoder_noise',
         help='Contrastive learning model layer augmentation noise',
-        type=range_limited_float_type(0), default=0.01
+        type=range_limited_float_type(0), default=0.001
     )
 
     parser.add_argument(
         '--decoder_noise',
         help='Contrastive learning model layer augmentation noise',
-        type=range_limited_float_type(0), default=0.01
+        type=range_limited_float_type(0), default=0.001
     )
 
     parser.add_argument(
