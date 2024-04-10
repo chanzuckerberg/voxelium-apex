@@ -141,6 +141,7 @@ class DatasetAnalysisContainer:
                 circular_mask_thickness_ang=args.circular_mask_thickness,
                 z_encoder_dims=z_encoder_dims,
                 s_encoder_dims=s_encoder_dims,
+                do_roi=args.roi_mask is not None
             )
 
             reconstruction_container.to(device)

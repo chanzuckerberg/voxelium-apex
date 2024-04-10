@@ -26,7 +26,7 @@ def mean_over_groups(data, groups=None):
 
 
 @torch.no_grad()
-def get_map_features(x, y, c, wx, wy, eps=1e-12, groups=None):
+def get_map_features(x, y, c, wx, wy, x0=None, eps=1e-12, groups=None):
     xT = torch.conj(x)
     c2 = c.square()
 
@@ -40,9 +40,14 @@ def get_map_features(x, y, c, wx, wy, eps=1e-12, groups=None):
     # xT @ x * (c2 * wy + wx) * z = xT @ wy * c * y
     lhs = torch.einsum('bnk, bmk -> bnm', xT, x * (c2 * wy + wx).unsqueeze(1))
     lhs = mean_over_groups(lhs, groups)
-    rhs = torch.einsum('bnk, bk -> bn', xT, wy * c * y)
-    rhs = mean_over_groups(rhs, groups)
-    return solve(lhs, rhs)
+    if x0 is None:
+        rhs = torch.einsum('bnk, bk -> bn', xT, wy * c * y)
+        rhs = mean_over_groups(rhs, groups)
+        return solve(lhs, rhs)
+    else:
+        rhs = torch.einsum('bnk, bk -> bn', xT, wy * (c * y - c2 * x0))
+        rhs = mean_over_groups(rhs, groups)
+        return solve(lhs, rhs)
 
 
 def spectra_to_masked_grid(
@@ -117,7 +122,7 @@ class FeatureExtractor:
         self.s0 = 1
 
     @torch.no_grad()
-    def __call__(self, hv, y, wy, wx, groups=None):
+    def __call__(self, hv, y, wy, wx, s0=None, groups=None):
         c = hv['ctfs_']
         batch_size = c.shape[0]
         grid_shape = list(c.shape[1:])
@@ -130,9 +135,17 @@ class FeatureExtractor:
 
         map_features = []
 
+        do_roi = s0 is not None
+
         for minr, maxr in self.bandpass:
             x_ = apply_spectral_mask(x, minr=minr, maxr=maxr, view_as_complex=True)
             x_ = x_.view([batch_size, s_size, x_.shape[-1]])
+
+            if do_roi:
+                x0_ = x_[:, 0] * s0
+                x_ = x_[:, 1:]
+            else:
+                x0_ = None
 
             y_ = apply_spectral_mask(y, minr=minr, maxr=maxr, view_as_complex=True)
             c_ = apply_spectral_mask(c, minr=minr, maxr=maxr)
@@ -140,7 +153,7 @@ class FeatureExtractor:
             wx_ = apply_spectral_mask(wx, batched=False, minr=minr, maxr=maxr)[None]
             wy_ = apply_spectral_mask(wy, batched=False, minr=minr, maxr=maxr)[None]
 
-            f = get_map_features(x=x_, y=y_, c=c_, wy=wy_, wx=wx_, groups=groups)
+            f = get_map_features(x=x_, y=y_, c=c_, wy=wy_, wx=wx_, x0=x0_, groups=groups)
 
             map_features.append(f)
 

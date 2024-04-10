@@ -73,7 +73,9 @@ class ModelContainer(nn.Module):
             lr=1e-3,
             wd=1e-2,
             features_mean=None,
-            features_std=None
+            features_std=None,
+            do_roi=False,
+            s0_ema=None
     ) -> None:
         super().__init__()
 
@@ -89,6 +91,9 @@ class ModelContainer(nn.Module):
 
         self.lr = lr
         self.wd = wd
+
+        self.do_roi = do_roi
+        self.s0_ema = 0 if s0_ema is None else s0_ema
 
         self.max_r = size_to_maxr(image_size)
         self.grid3d_size = image_size + 1 - image_size % 2
@@ -117,7 +122,7 @@ class ModelContainer(nn.Module):
                     if (minr, maxr) not in self.feature_bandpass:
                         self.feature_bandpass.append((minr, maxr))
 
-        feature_size = len(self.feature_bandpass) * s_size
+        feature_size = len(self.feature_bandpass) * (s_size - 1 if do_roi else s_size)
 
         self.z_encoder = Encoder(
             input_dim=feature_size,
@@ -181,16 +186,15 @@ class ModelContainer(nn.Module):
         return mu, log_var
 
     def s_encode(self, x, noise=0):
-        return self.s_encoder(x, noise=noise)
-        # return self.s_encoder(x, noise=noise)
+        s = self.s_encoder(x, noise=noise)
+        if self.training:
+            s0_mean = s[:, 0].mean()
+            s[:, 0] = s0_mean
+            self.s0_ema = self.s0_ema * 0.9 + s0_mean.detach().cpu().item() * 0.1
+        else:
+            s[:, 0] = self.s0_ema
 
-    def vae(self, x, encoder_noise=0, decoder_noise=0, reparam=False):
-        mu, log_var = self.encode(x, noise=encoder_noise)
-        z = self.reparameterize(mu, log_var) if reparam else mu
-
-        s = self.s_encoder(z, noise=decoder_noise)
-
-        return z, s, mu, log_var
+        return s
 
     def init_optimizers(self):
         _, spectral_idx, _ = self.decoder._load_cache(self.decoder.max_r, True)
@@ -245,6 +249,9 @@ class ModelContainer(nn.Module):
             "adam_opt": self.adam_opt.state_dict(),
             "decoder": self.decoder.state_dict(),
             "decoder_opt": self.decoder_opt.state_dict(),
+
+            "do_roi": self.do_roi,
+            "s0_ema": self.s0_ema
         }
 
     @staticmethod
@@ -270,6 +277,8 @@ class ModelContainer(nn.Module):
                 feature_bandpass_arg=state_dict["feature_bandpass_arg"],
                 features_mean=state_dict["features_mean"],
                 features_std=state_dict["features_std"],
+                do_roi=state_dict["do_roi"],
+                s0_ema=state_dict["s0_ema"]
             )
 
             container.z_encoder.load_state_dict(state_dict["z_encoder"])

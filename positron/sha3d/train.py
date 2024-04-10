@@ -273,8 +273,10 @@ def train(rank, args, ddp_args):
                 x_noise_pow = stats.get_x_noise()
                 snr = y_weight * x_signal_pow
 
+                s0_ = rec.s0_ema if do_roi else None
+
                 features = feature_extractor(
-                    hv=hv, y=y_ft, wy=snr, wx=x_noise_pow, groups=particle_groups)
+                    hv=hv, y=y_ft, wy=snr, wx=x_noise_pow, groups=particle_groups, s0=s0_)
 
                 if log_stats:
                     summary.add_scalar("Features/mean", features.mean())
@@ -308,10 +310,18 @@ def train(rank, args, ddp_args):
                     if log_stats:
                         summary.add_scalar(f"Z/std", z.std())
                         summary.add_scalar(f"Z/mean", z.mean())
+
                         summary.add_scalar(f"S/std", s.std())
                         summary.add_scalar(f"S/mean", s.mean())
                         summary.add_scalar(f"S/norm mean", s.square().sum(1).sqrt().mean())
                         summary.add_scalar(f"S/norm std", s.square().sum(1).sqrt().std())
+
+                        summary.add_scalar(f"S0/std", s[:, 0].std())
+                        summary.add_scalar(f"S0/mean", s[:, 0].mean())
+                        summary.add_scalar(f"S0/norm", s[:, 0].square().mean().sqrt())
+
+                        if rec.s0_ema is not None:
+                            summary.add_scalar(f"S0/ema", rec.s0_ema)
 
                     tt = time.time()
 
@@ -357,22 +367,13 @@ def train(rank, args, ddp_args):
                                 summary.add_scalar(f"Loss/Regularization", regularization_loss)
                             total_loss += regularization_loss * args.regularization
 
-                        if do_tomo:
-                            s_ = s_[particle_groups]
-
-                        if args.roni_weight > 0 and do_roi:
-                            s0 = s[:, 0]
-                            roni_loss = (s0 - s0.mean()).square().mean()
-                            total_loss += roni_loss * args.roni_weight
-                            summary.add_scalar(f"Loss/RONI", roni_loss)
-                            summary.add_scalar(f"S0/std", s0.std())
-                            summary.add_scalar(f"S0/mean", s0.mean())
-                            summary.add_scalar(f"S0/norm", s0.square().mean().sqrt())
-
                         if args.consistency_weight > 0 and epoch > 0:
                             features_ = features + torch.randn_like(features) * args.feature_noise
                             z_noise, _ = rec.z_encode(features_, noise=args.encoder_noise)
                             s_noise = rec.s_encode(z_noise, noise=args.decoder_noise)
+
+                            if do_tomo:
+                                s_noise = s_noise[particle_groups]
 
                             s_ = s[:, 1:] if do_roi else s
                             s_noise_ = s_noise[:, 1:] if do_roi else s_noise
