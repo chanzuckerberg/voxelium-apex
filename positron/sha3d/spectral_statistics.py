@@ -132,10 +132,10 @@ class SpectralStatistics(torch.nn.Module):
         return fsc
 
     def get_y_weight(self, eps=1e-4):
-        sigma = self.mse.data.clip(0, 1)
-        # sigma = torch.clip(1 - self.c_valid_spectrum.data.clip(0, 1).sqrt(), 0)
+        # sigma = self.mse.data.clip(0, 1)
+        sigma = torch.clip(1 - self.c_valid_spectrum.data.clip(0, 1), 0)
 
-        weight = 1. / (sigma.square() + eps)
+        weight = 1. / (sigma + eps)
         return weight
 
     def get_x_noise(self):
@@ -151,7 +151,7 @@ class SpectralStatistics(torch.nn.Module):
         sigma2_weight /= torch.max(sigma2_weight) + 1e-12
 
         sigma_1 = self.mse.data.clip(0, 1)
-        sigma_2 = torch.clip(1 - self.c_valid_spectrum.data.clip(0, 1).sqrt(), 0)
+        sigma_2 = torch.clip(1 - self.c_valid_spectrum.data.clip(0, 1), 0)
 
         return {
             'Means': [

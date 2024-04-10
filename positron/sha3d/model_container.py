@@ -187,12 +187,13 @@ class ModelContainer(nn.Module):
 
     def s_encode(self, x, noise=0):
         s = self.s_encoder(x, noise=noise)
-        if self.training:
-            s0_mean = s[:, 0].mean()
-            s[:, 0] = s0_mean
-            self.s0_ema = self.s0_ema * 0.9 + s0_mean.detach().cpu().item() * 0.1
-        else:
-            s[:, 0] = self.s0_ema
+        if self.do_roi:
+            if self.training:
+                s0_mean = s[:, 0].mean()
+                s[:, 0] = s0_mean
+                self.s0_ema = self.s0_ema * 0.9 + s0_mean.detach().cpu().item() * 0.1
+            else:
+                s[:, 0] = self.s0_ema
 
         return s
 
