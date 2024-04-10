@@ -124,6 +124,7 @@ def train(rank, args, ddp_args):
         # solvent_mask = solvent_mask.pow(1. / 10.)
 
     roi_mask = None
+    do_roi = False
     if args.roi_mask is not None:
         roi_mask, _, _ = load_mrc(args.roi_mask)
         roi_mask = torch.Tensor(roi_mask.copy()).to(device)
@@ -131,7 +132,7 @@ def train(rank, args, ddp_args):
         if not torch.any((0. < roi_mask) & (roi_mask < 1.)):
             print("\nWARNING: ROI mask should only contain values in the range (including) zero and one.\n")
 
-        # roi_mask = roi_mask.pow(1./10.)
+        do_roi = True
 
     subtract_mask = None
     if args.subtract_mask is not None:
@@ -309,8 +310,8 @@ def train(rank, args, ddp_args):
                         summary.add_scalar(f"Z/mean", z.mean())
                         summary.add_scalar(f"S/std", s.std())
                         summary.add_scalar(f"S/mean", s.mean())
-                        summary.add_scalar(f"S0/std", s[:, 0].std())
-                        summary.add_scalar(f"S0/mean", s[:, 0].mean())
+                        summary.add_scalar(f"S/norm mean", s.square().sum(1).sqrt().mean())
+                        summary.add_scalar(f"S/norm std", s.square().sum(1).sqrt().std())
 
                     tt = time.time()
 
@@ -356,19 +357,27 @@ def train(rank, args, ddp_args):
                                 summary.add_scalar(f"Loss/Regularization", regularization_loss)
                             total_loss += regularization_loss * args.regularization
 
-                        if log_stats:
-                            summary.add_scalar(f"S/S norm mean", s.square().sum(1).sqrt().mean())
-                            summary.add_scalar(f"S/S norm std", s.square().sum(1).sqrt().std())
-
-                        features_ = features + torch.randn_like(features) * args.feature_noise
-                        z_, _ = rec.z_encode(features_, noise=args.encoder_noise)
-                        s_ = rec.s_encode(z_, noise=args.decoder_noise)
-
                         if do_tomo:
                             s_ = s_[particle_groups]
 
+                        if args.roni_weight > 0 and do_roi:
+                            s0 = s[:, 0]
+                            roni_loss = (s0 - s0.mean()).square().mean()
+                            total_loss += roni_loss * args.roni_weight
+                            summary.add_scalar(f"Loss/RONI", roni_loss)
+                            summary.add_scalar(f"S0/std", s0.std())
+                            summary.add_scalar(f"S0/mean", s0.mean())
+                            summary.add_scalar(f"S0/norm", s0.square().mean().sqrt())
+
                         if args.consistency_weight > 0 and epoch > 0:
-                            similarities = similarity(s, s_)
+                            features_ = features + torch.randn_like(features) * args.feature_noise
+                            z_noise, _ = rec.z_encode(features_, noise=args.encoder_noise)
+                            s_noise = rec.s_encode(z_noise, noise=args.decoder_noise)
+
+                            s_ = s[:, 1:] if do_roi else s
+                            s_noise_ = s_noise[:, 1:] if do_roi else s_noise
+
+                            similarities = similarity(s_, s_noise_)
                             consistency_loss_train = similarities[train_mask].mean()
 
                             if log_stats:

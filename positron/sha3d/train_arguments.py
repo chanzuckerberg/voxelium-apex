@@ -53,6 +53,13 @@ def append_train_arguments(parser):
         help='If a mask is provided, allow only structural heterogeneity inside the masked region.',
         type=str, default=None
     )
+
+    parser.add_argument(
+        '--roni_weight',
+        help='Weight to penalize standard deviation of RONI region S.',
+        type=range_limited_float_type(0), default=1
+    )
+
     parser.add_argument(
         '--subtract_mask',
         help='If a mask is provided, create a new particle stack where everything outside the mask is subtracted.',
