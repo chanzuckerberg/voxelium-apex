@@ -201,6 +201,9 @@ def smoothen_spectra(spec, kernel=5):
 
 
 def smoothen_spectra(spec, kernel=5):
+    no_batch = spec.ndim == 1
+    if no_batch:
+        spec = spec.unsqueeze(0)
     kernel += 1 - kernel % 2  # Make odd
     p = kernel // 2
     spec_pad = torch.zeros([spec.shape[0], spec.shape[1] + p * 2]).to(spec.device)
@@ -213,6 +216,8 @@ def smoothen_spectra(spec, kernel=5):
     filter = filter[None, None] / torch.sum(filter)
     w = F.conv1d(torch.ones_like(spec_pad), filter).squeeze(1)
     spec_pad_filter = F.conv1d(spec_pad, filter).squeeze(1)
+    if no_batch:
+        spec_pad_filter = spec_pad_filter.squeeze(0)
     return spec_pad_filter
 
 

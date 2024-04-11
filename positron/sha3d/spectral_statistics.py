@@ -66,12 +66,11 @@ class SpectralStatistics(torch.nn.Module):
         return grid_spectral_average(grid, indices)
 
     def spectral_ema_(self, exponential_mean, latest, momentum):
+        # Because of edge artefacts, the last 2 elements will be distorted
         if len(exponential_mean.shape) == 1:
-            latest[-1] = latest[-2]
-            latest = smoothen_spectra(latest[None], kernel=3)[0]
+            latest[-2:] = latest[-4:-2].mean()
         else:
-            latest[:, -1] = latest[:, -2]
-            latest = smoothen_spectra(latest, kernel=3)
+            latest[:, -2:] = latest[:, -4:-2].mean()
 
         exponential_mean[:] = exponential_mean * momentum + latest * (1 - momentum)
 
@@ -126,25 +125,32 @@ class SpectralStatistics(torch.nn.Module):
         self.spectral_ema_(self.c_valid_max_spectrum.data, c_valid_max_spec / (ctf2 + 1e-12), momentum)
 
     def get_fsc_spectrum(self, eps=1e-12):
-        fsc = self.c_valid_spectrum.data / (self.c_train_spectrum.data + eps)
-        fsc = torch.clip(smoothen_spectra(fsc[None], kernel=10)[0], 0, 1)
+        # Smoothen rigorously to avoid a noisy FSC estimate as the two spectra are almost the same value
+        c_valid = smoothen_spectra(self.c_valid_spectrum.data, kernel=self.maxr // 10)
+        c_train = smoothen_spectra(self.c_train_spectrum.data, kernel=self.maxr // 10)
+        fsc = c_valid / (c_train + eps)
+        fsc = fsc.clip(0, 1)
         fsc[:2] = 1
         return fsc
 
     def get_y_weight(self, eps=1e-4):
-        # sigma = self.mse.data.clip(0, 1)
-        sigma = torch.clip(1 - self.c_valid_spectrum.data.clip(0, 1), 0)
+        c_valid = smoothen_spectra(self.c_valid_spectrum.data, kernel=5)
+        sigma = torch.clip(1 - c_valid.clip(0, 1), 0)
 
         weight = 1. / (sigma + eps)
         return weight
 
     def get_x_noise(self):
         fsc = self.get_fsc_spectrum()
-        return torch.clip(self.x_ctf_train_power.data * (1 - fsc), 0, 1)
+        power = smoothen_spectra(self.x_ctf_train_power.data, kernel=5)
+        noise_power = torch.clip(power * (1 - fsc), 0, 1)
+        return noise_power
 
     def get_x_signal(self):
         fsc = self.get_fsc_spectrum()
-        return torch.clip(self.x_ctf_train_power.data * fsc, 0, 1)
+        power = smoothen_spectra(self.x_ctf_train_power.data, kernel=5)
+        noise_power = torch.clip(power * fsc, 0, 1)
+        return noise_power
 
     def get_spectral_summary(self):
         sigma2_weight = self.get_y_weight()
