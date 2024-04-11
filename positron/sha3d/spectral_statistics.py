@@ -124,13 +124,14 @@ class SpectralStatistics(torch.nn.Module):
         self.spectral_ema_(self.c_train_max_spectrum.data, c_train_max_spec / (ctf2 + 1e-12), momentum)
         self.spectral_ema_(self.c_valid_max_spectrum.data, c_valid_max_spec / (ctf2 + 1e-12), momentum)
 
-    def get_fsc_spectrum(self, eps=1e-12):
+    def get_fsc_spectrum(self, eps=1e-6):
         # Smoothen rigorously to avoid a noisy FSC estimate as the two spectra are almost the same value
         c_valid = smoothen_spectra(self.c_valid_spectrum.data, kernel=self.maxr // 10)
         c_train = smoothen_spectra(self.c_train_spectrum.data, kernel=self.maxr // 10)
         fsc = c_valid / (c_train + eps)
         fsc = fsc.clip(0, 1)
         fsc[:2] = 1
+        fsc = smoothen_spectra(fsc, kernel=self.maxr // 10)
         return fsc
 
     def get_y_weight(self, eps=1e-4):

@@ -83,17 +83,24 @@ class BaseOptimizer(Optimizer):
 
                 p.add_(update)
 
+                scale = 0.
                 for i in range(nr_base):
                     p_square = p[:, i].square()
-                    scale_fatcor = 1. / (nr_base * p_square.mean().sqrt() + 1e-12)
-                    p[i].mul_(scale_fatcor)
-                    exp_avg[i].mul_(scale_fatcor)
+                    scale += p_square.mean()
                     state['spectral_power'][i] = grid_spectral_average(p_square.mean(-1), sidx).sqrt()
+                    # Because of edge artefacts, the last 2 elements will be distorted
+                    state['spectral_power'][i][-2:] = state['spectral_power'][i][-4:-2].mean()
+
+                scale = 1. / (scale.sqrt() + 1e-12)
+                p.mul_(scale)
+                exp_avg.mul_(scale)
 
                 # p.mul_(torch.sqrt(1 / (state['spectral_power'].mean(dim=1)[None, :, None] + 1e-12)))
 
                 # Decay the momentum running average coefficient
                 exp_avg.mul_(beta2).add_(grad, alpha=1 - beta2)
+
+
 
     def get_stats(self):
         spectral_power = self.state[self.param_groups[0]['params'][0]]['spectral_power']
