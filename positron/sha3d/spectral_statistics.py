@@ -135,8 +135,9 @@ class SpectralStatistics(torch.nn.Module):
         return fsc
 
     def get_y_weight(self, eps=1e-4):
-        mse = smoothen_spectra(self.mse.data, kernel=5).clip(0, 1)
-        sigma = torch.clip(1 - mse.clip(0, 1), 0)
+        c_valid = self.c_valid_spectrum.data.clip(0, 1)
+        c_valid = smoothen_spectra(c_valid, kernel=5).clip(0, 1)
+        sigma = 1 - c_valid
 
         weight = 1. / (sigma + eps)
         return weight
