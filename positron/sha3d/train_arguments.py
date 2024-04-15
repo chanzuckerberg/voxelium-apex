@@ -102,15 +102,15 @@ def append_train_arguments(parser):
     )
 
     parser.add_argument(
-        '--consistency_weight', '--cw',
-        help='Self consistency of the S vector',
+        '--smoothness_weight', '--cw',
+        help='Smoothness of the embedding',
         type=range_limited_float_type(0), default=1.
     )
 
     parser.add_argument(
-        '--smoothness', '--smooth',
-        help='Smoothness in embedding',
-        type=range_limited_float_type(0), default=.3
+        '--smoothness_distance',
+        help='Pair distance for smoothness loss',
+        type=range_limited_float_type(0, 1), default=1.
     )
 
     parser.add_argument(

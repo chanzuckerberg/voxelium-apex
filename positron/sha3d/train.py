@@ -369,8 +369,17 @@ def train(rank, args, ddp_args):
                             total_loss += regularization_loss * args.regularization
 
                         if args.consistency_weight > 0 and epoch > 0:
-                            features_ = torch.roll(features, dims=0, shifts=(1,))
-                            features_ = features + (features_ - features) * args.smoothness
+
+                            distances = torch.cdist(features, features)
+                            distances.fill_diagonal_(float('inf'))
+                            _, closest_indices = torch.min(distances, dim=1)
+                            closest_pairs = features[closest_indices]
+
+                            if args.consistency_distance == 1.:
+                                features_ = closest_pairs
+                            else:
+                                features_ = features + (closest_pairs - features) * args.consistency_distance
+
                             z_noise, _ = rec.z_encode(features_)
                             s_noise = rec.s_encode(z_noise)
 
