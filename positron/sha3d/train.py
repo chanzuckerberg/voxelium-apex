@@ -9,6 +9,7 @@ import time
 
 from datetime import datetime
 
+import torch
 from torch.utils.data import DataLoader
 
 from positron.sha3d.feature_extractor import FeatureExtractor
@@ -368,9 +369,11 @@ def train(rank, args, ddp_args):
                             total_loss += regularization_loss * args.regularization
 
                         if args.consistency_weight > 0 and epoch > 0:
-                            features_ = features + torch.randn_like(features) * args.feature_noise
-                            z_noise, _ = rec.z_encode(features_, noise=args.encoder_noise)
-                            s_noise = rec.s_encode(z_noise, noise=args.decoder_noise)
+                            features_train = features[train_mask]
+                            features_ = torch.roll(features_train, dims=0, shifts=(1,))
+                            features_ = features_train + (features_ - features_train) * args.smoothness
+                            z_noise, _ = rec.z_encode(features_)
+                            s_noise = rec.s_encode(z_noise)
 
                             if do_tomo:
                                 s_noise = s_noise[particle_groups]
@@ -378,15 +381,11 @@ def train(rank, args, ddp_args):
                             s_ = s[:, 1:] if do_roi else s
                             s_noise_ = s_noise[:, 1:] if do_roi else s_noise
 
-                            similarities = similarity(s_, s_noise_)
-                            consistency_loss_train = similarities[train_mask].mean()
+                            similarities = (s_[train_mask] - s_noise_).square()
+                            consistency_loss_train = similarities.mean()
 
                             if log_stats:
-                                consistency_loss_valid = similarities[~train_mask].mean()
-                                summary.add_scalar(f"Loss/Consistency Train", consistency_loss_train)
-                                summary.add_scalar(f"Loss/Consistency Valid", consistency_loss_valid)
-                                summary.add_scalar(f"Loss/Consistency Diff",
-                                                   consistency_loss_valid - consistency_loss_train)
+                                summary.add_scalar(f"Loss/Consistency", consistency_loss_train)
                             total_loss += consistency_loss_train * args.consistency_weight
 
                         total_loss.backward()

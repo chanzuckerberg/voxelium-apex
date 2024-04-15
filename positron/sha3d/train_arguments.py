@@ -108,21 +108,9 @@ def append_train_arguments(parser):
     )
 
     parser.add_argument(
-        '--encoder_noise',
-        help='Contrastive learning model layer augmentation noise',
-        type=range_limited_float_type(0), default=0.001
-    )
-
-    parser.add_argument(
-        '--decoder_noise',
-        help='Contrastive learning model layer augmentation noise',
-        type=range_limited_float_type(0), default=0.001
-    )
-
-    parser.add_argument(
-        '--feature_noise',
-        help='Contrastive learning feature augmentation noise',
-        type=range_limited_float_type(0), default=0.01
+        '--smoothness', '--smooth',
+        help='Smoothness in embedding',
+        type=range_limited_float_type(0), default=.3
     )
 
     parser.add_argument(
