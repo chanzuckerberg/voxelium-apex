@@ -368,17 +368,13 @@ def train(rank, args, ddp_args):
                                 summary.add_scalar(f"Loss/Regularization", regularization_loss)
                             total_loss += regularization_loss * args.regularization
 
-                        if args.consistency_weight > 0 and epoch > 0:
+                        if args.smoothness_weight > 0 and args.smoothness_distance > 0 and epoch > 0:
 
                             distances = torch.cdist(features, features)
                             distances.fill_diagonal_(float('inf'))
                             _, closest_indices = torch.min(distances, dim=1)
                             closest_pairs = features[closest_indices]
-
-                            if args.consistency_distance == 1.:
-                                features_ = closest_pairs
-                            else:
-                                features_ = features + (closest_pairs - features) * args.consistency_distance
+                            features_ = features + (closest_pairs - features) * args.smoothness_distance
 
                             z_noise, _ = rec.z_encode(features_)
                             s_noise = rec.s_encode(z_noise)
@@ -390,11 +386,11 @@ def train(rank, args, ddp_args):
                             s_noise_ = s_noise[:, 1:] if do_roi else s_noise
 
                             similarities = (s_ - s_noise_)[train_mask].square()
-                            consistency_loss_train = similarities.mean()
+                            smoothnes_loss_train = similarities.mean()
 
                             if log_stats:
-                                summary.add_scalar(f"Loss/Consistency", consistency_loss_train)
-                            total_loss += consistency_loss_train * args.consistency_weight
+                                summary.add_scalar(f"Loss/Consistency", smoothnes_loss_train)
+                            total_loss += smoothnes_loss_train * args.smoothness_weight
 
                         total_loss.backward()
 
