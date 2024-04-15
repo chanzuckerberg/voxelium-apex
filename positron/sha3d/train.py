@@ -369,9 +369,8 @@ def train(rank, args, ddp_args):
                             total_loss += regularization_loss * args.regularization
 
                         if args.consistency_weight > 0 and epoch > 0:
-                            features_train = features[train_mask]
-                            features_ = torch.roll(features_train, dims=0, shifts=(1,))
-                            features_ = features_train + (features_ - features_train) * args.smoothness
+                            features_ = torch.roll(features, dims=0, shifts=(1,))
+                            features_ = features + (features_ - features) * args.smoothness
                             z_noise, _ = rec.z_encode(features_)
                             s_noise = rec.s_encode(z_noise)
 
@@ -381,7 +380,7 @@ def train(rank, args, ddp_args):
                             s_ = s[:, 1:] if do_roi else s
                             s_noise_ = s_noise[:, 1:] if do_roi else s_noise
 
-                            similarities = (s_[train_mask] - s_noise_).square()
+                            similarities = (s_ - s_noise_)[train_mask].square()
                             consistency_loss_train = similarities.mean()
 
                             if log_stats:
