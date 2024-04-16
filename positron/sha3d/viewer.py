@@ -103,27 +103,27 @@ class Viewer:
 
         # BUTTONS & TEXT BOXES -------------------------------------------------------------------------
 
-        clear_button_axes = plt.axes([0.01, 0.01, 0.1, 0.05])
-        clear_button = Button(clear_button_axes, 'clear\n(Esc)')
+        self.clear_button_axes = plt.axes([0.01, 0.01, 0.1, 0.05])
+        self.clear_button = Button(self.clear_button_axes, 'clear\n(Esc)')
 
-        subset_button_axes = plt.axes([0.12, 0.01, 0.1, 0.05])
-        subset_button = Button(subset_button_axes, 'subset')
+        self.subset_button_axes = plt.axes([0.12, 0.01, 0.1, 0.05])
+        self.subset_button = Button(self.subset_button_axes, 'subset')
 
-        save_volumes_button_axes = plt.axes([0.23, 0.01, 0.1, 0.05])
-        save_volumes_button = Button(save_volumes_button_axes, 'save\nvolumes')
+        self.save_volumes_button_axes = plt.axes([0.23, 0.01, 0.1, 0.05])
+        self.save_volumes_button = Button(self.save_volumes_button_axes, 'save\nvolumes')
 
-        save_images_button_axes = plt.axes([0.34, 0.01, 0.1, 0.05])
-        save_images_button = Button(save_images_button_axes, 'save\nGIF')
+        self.save_images_button_axes = plt.axes([0.34, 0.01, 0.1, 0.05])
+        self.save_images_button = Button(self.save_images_button_axes, 'save\nGIF')
 
         # Heat-map setting ---------
 
         self.hm_sigma = 4
 
-        hm_up_button_axes = plt.axes([0.585, 0.037, 0.02, 0.023])
-        hm_up_button = Button(hm_up_button_axes, '↑')
+        self.hm_up_button_axes = plt.axes([0.585, 0.037, 0.02, 0.023])
+        self.hm_up_button = Button(self.hm_up_button_axes, '↑')
 
-        hm_down_button_axes = plt.axes([0.585, 0.01, 0.02, 0.023])
-        hm_down_button = Button(hm_down_button_axes, '↓')
+        self.hm_down_button_axes = plt.axes([0.585, 0.01, 0.02, 0.023])
+        self.hm_down_button = Button(self.hm_down_button_axes, '↓')
 
         self.hm_text_axes = plt.axes([0.61, 0.01, 0.1, 0.05])
         self.hm_sigma_text = make_text_box(self.hm_text_axes, f"Heatmap\n{self.hm_sigma}")
@@ -133,22 +133,22 @@ class Viewer:
         self.bfactor = 0
         self.bfactor_step = bfac_step
 
-        bfactor_up_button_axes = plt.axes([0.725, 0.037, 0.02, 0.023])
-        bfactor_up_button = Button(bfactor_up_button_axes, '↑')
+        self.bfactor_up_button_axes = plt.axes([0.725, 0.037, 0.02, 0.023])
+        self.bfactor_up_button = Button(self.bfactor_up_button_axes, '↑')
 
-        bfactor_down_button_axes = plt.axes([0.725, 0.01, 0.02, 0.023])
-        bfactor_down_button = Button(bfactor_down_button_axes, '↓')
+        self.bfactor_down_button_axes = plt.axes([0.725, 0.01, 0.02, 0.023])
+        self.bfactor_down_button = Button(self.bfactor_down_button_axes, '↓')
 
-        bfactor_text_axes = plt.axes([0.75, 0.01, 0.1, 0.05])
-        self.bfactor_text = make_text_box(bfactor_text_axes, f"B-factor\n{self.bfactor}")
+        self.bfactor_text_axes = plt.axes([0.75, 0.01, 0.1, 0.05])
+        self.bfactor_text = make_text_box(self.bfactor_text_axes, f"B-factor\n{self.bfactor}")
 
         # Iso-Value setting ---------
 
-        iso_value_up_button_axes = plt.axes([0.865, 0.037, 0.02, 0.023])
-        iso_value_up_button = Button(iso_value_up_button_axes, '↑')
+        self.iso_value_up_button_axes = plt.axes([0.865, 0.037, 0.02, 0.023])
+        self.iso_value_up_button = Button(self.iso_value_up_button_axes, '↑')
 
-        iso_value_down_button_axes = plt.axes([0.865, 0.01, 0.02, 0.023])
-        iso_value_down_button = Button(iso_value_down_button_axes, '↓')
+        self.iso_value_down_button_axes = plt.axes([0.865, 0.01, 0.02, 0.023])
+        self.iso_value_down_button = Button(self.iso_value_down_button_axes, '↓')
 
         self.iso_value_text_axes = plt.axes([0.89, 0.01, 0.1, 0.05])
         self.iso_value_text = make_text_box(self.iso_value_text_axes, "Iso value\n-")
@@ -162,16 +162,16 @@ class Viewer:
 
         self.selector_line = {'color': '#c596fb', 'linewidth': 4, 'alpha': 0.8}
 
-        clear_button.on_clicked(self.clear_selection)
-        subset_button.on_clicked(self.subset_selection)
-        save_volumes_button.on_clicked(self.save_selected_volumes)
-        save_images_button.on_clicked(self.save_volume_images)
-        hm_up_button.on_clicked(self.raise_hm_sigma)
-        hm_down_button.on_clicked(self.lower_hm_sigma)
-        bfactor_up_button.on_clicked(self.raise_bfactor)
-        bfactor_down_button.on_clicked(self.lower_bfactor)
-        iso_value_up_button.on_clicked(self.raise_iso_value)
-        iso_value_down_button.on_clicked(self.lower_iso_value)
+        self.clear_button.on_clicked(self.clear_selection)
+        self.subset_button.on_clicked(self.subset_selection)
+        self.save_volumes_button.on_clicked(self.save_selected_volumes)
+        self.save_images_button.on_clicked(self.save_volume_images)
+        self.hm_up_button.on_clicked(self.raise_hm_sigma)
+        self.hm_down_button.on_clicked(self.lower_hm_sigma)
+        self.bfactor_up_button.on_clicked(self.raise_bfactor)
+        self.bfactor_down_button.on_clicked(self.lower_bfactor)
+        self.iso_value_up_button.on_clicked(self.raise_iso_value)
+        self.iso_value_down_button.on_clicked(self.lower_iso_value)
 
         # MAKE HEAT MAP -------------------------------------------------------------------------------------
 
@@ -256,13 +256,37 @@ class Viewer:
             self.selector_obj = None
             self.subset_selection_ongoing = False
 
+    def ui_visible(self, visible=False):
+        self.clear_button_axes.set_visible(visible)
+        self.subset_button_axes.set_visible(visible)
+        self.save_volumes_button_axes.set_visible(visible)
+        self.save_images_button_axes.set_visible(visible)
+        self.hm_up_button_axes.set_visible(visible)
+        self.hm_down_button_axes.set_visible(visible)
+        self.bfactor_up_button_axes.set_visible(visible)
+        self.bfactor_down_button_axes.set_visible(visible)
+        self.iso_value_up_button_axes.set_visible(visible)
+        self.iso_value_down_button_axes.set_visible(visible)
+
+        self.hm_text_axes.set_visible(visible)
+        self.bfactor_text_axes.set_visible(visible)
+        self.iso_value_text_axes.set_visible(visible)
+
     def save_dataset_indices(self, vertices):
         path = Path(vertices)
         mask = path.contains_points(self.coord)
         indices = np.arange(0, self.coord.shape[0])[mask]
+
         path = f"subset_{self.subset_index}.csv"
         print(f"Saving indices of {len(indices)} selected particles to {path}")
         np.savetxt(path, indices, delimiter=',', fmt='%d')
+
+        path = f"subset_{self.subset_index}.png"
+        print(f"Saving plot of selection to {path}")
+        self.ui_visible(False)
+        plt.savefig(path)
+        self.ui_visible(True)
+
         self.subset_index += 1
         self.clear_subset_selection()
 
