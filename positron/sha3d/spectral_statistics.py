@@ -36,8 +36,6 @@ class SpectralStatistics(torch.nn.Module):
         self.c_valid_spectrum = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
         self.c_train_ctf_spectrum = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
         self.c_valid_ctf_spectrum = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
-        self.c_train_max_spectrum = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
-        self.c_valid_max_spectrum = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
 
         self.mse = torch.nn.Parameter(torch.ones(self.maxr), requires_grad=False)
 
@@ -113,16 +111,6 @@ class SpectralStatistics(torch.nn.Module):
         self.spectral_ema_(self.c_valid_spectrum.data, c_valid_spec / (ctf2 + 1e-12), momentum)
         self.spectral_ema_(self.c_train_ctf_spectrum.data, c_train_spec, momentum)
         self.spectral_ema_(self.c_valid_ctf_spectrum.data, c_valid_spec, momentum)
-
-        c_train_max_spec = self.get_spectrum_from_grid_(cc[train_mask])
-        c_valid_max_spec = self.get_spectrum_from_grid_(cc[valid_mask])
-        c_train_max_spec = c_train_max_spec[torch.argmax(torch.mean(c_train_max_spec, 1))]
-        c_valid_max_spec = c_valid_max_spec[torch.argmax(torch.mean(c_valid_max_spec, 1))]
-        c_train_max_spec = torch.clip(c_train_max_spec, 0, 1)
-        c_valid_max_spec = torch.clip(c_valid_max_spec, 0, 1)
-
-        self.spectral_ema_(self.c_train_max_spectrum.data, c_train_max_spec / (ctf2 + 1e-12), momentum)
-        self.spectral_ema_(self.c_valid_max_spectrum.data, c_valid_max_spec / (ctf2 + 1e-12), momentum)
 
     def get_fsc_spectrum(self, eps=1e-6):
         # Smoothen rigorously to avoid a noisy FSC estimate as the two spectra are almost the same value
