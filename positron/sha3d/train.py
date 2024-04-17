@@ -304,7 +304,7 @@ def train(rank, args, ddp_args):
                     subtraction_helper(s, sample, hv)
 
                 if not finalize:
-                    s_retention(logit=s, labels=train_mask, make_summary=log_stats)
+                    #s_retention(logit=s, labels=train_mask, make_summary=log_stats)
                     if log_stats:
                         summary.add_scalars(s_retention.get_summary())
 

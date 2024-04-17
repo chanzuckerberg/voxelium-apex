@@ -178,11 +178,11 @@ class Viewer:
         self.hm_cm = get_default_cmap()
 
         self.marker_size = 0.05
-        self.hm_bins = 1000
+        self.hm_bins = 500
         self.hm_lim = 2
 
         c = np.unique(self.coord, axis=0)
-        c = (c / (2 * self.hm_lim) + 0.5) * self.hm_bins
+        c = (c / (3 * self.hm_lim) + 0.5) * self.hm_bins
 
         mask = (0 <= c) & (c < self.hm_bins - 0.5)
         mask = mask.all(axis=1)
