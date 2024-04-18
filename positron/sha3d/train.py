@@ -305,8 +305,8 @@ def train(rank, args, ddp_args):
 
                 if not finalize:
                     #s_retention(logit=s, labels=train_mask, make_summary=log_stats)
-                    if log_stats:
-                        summary.add_scalars(s_retention.get_summary())
+                    # if log_stats:
+                    #     summary.add_scalars(s_retention.get_summary())
 
                     if log_stats:
                         summary.add_scalar(f"Z/std", z.std())
@@ -368,13 +368,14 @@ def train(rank, args, ddp_args):
                                 summary.add_scalar(f"Loss/Regularization", regularization_loss)
                             total_loss += regularization_loss * args.regularization
 
-                        if args.smoothness_weight > 0 and args.smoothness_distance > 0 and epoch > 0:
+                        if args.smoothness_weight > 0 and args.smoothness_distance > 0:
 
                             distances = torch.cdist(features, features)
                             distances.fill_diagonal_(float('inf'))
                             _, closest_indices = torch.min(distances, dim=1)
-                            closest_pairs = features[closest_indices]
-                            features_ = features + (closest_pairs - features) * args.smoothness_distance
+                            closest_point = features[closest_indices]
+                            feature_noise = (closest_point - features).abs() * torch.randn_like(features)
+                            features_ = features + feature_noise * args.smoothness_distance
 
                             z_noise, _ = rec.z_encode(features_)
                             s_noise = rec.s_encode(z_noise)
