@@ -368,13 +368,13 @@ def train(rank, args, ddp_args):
                                 summary.add_scalar(f"Loss/Regularization", regularization_loss)
                             total_loss += regularization_loss * args.regularization
 
-                        if args.smoothness_weight > 0 and args.smoothness_distance > 0:
+                        if args.s_consistency_weight > 0 and args.smoothness_distance > 0:
 
                             distances = torch.cdist(features, features)
                             distances.fill_diagonal_(float('inf'))
                             _, closest_indices = torch.min(distances, dim=1)
                             closest_point = features[closest_indices]
-                            feature_noise = (closest_point - features).abs() * torch.randn_like(features)
+                            feature_noise = (closest_point - features).abs().clip(1e-3) * torch.randn_like(features)
                             features_ = features + feature_noise * args.smoothness_distance
 
                             z_noise, _ = rec.z_encode(features_)
@@ -386,12 +386,14 @@ def train(rank, args, ddp_args):
                             s_ = s[:, 1:] if do_roi else s
                             s_noise_ = s_noise[:, 1:] if do_roi else s_noise
 
-                            similarities = (s_ - s_noise_)[train_mask].square()
-                            smoothnes_loss_train = similarities.mean()
+                            s_consitency_loss_train = (s_ - s_noise_)[train_mask].square().mean()
+                            z_compactness_loss_train = z_noise[train_mask].square().mean()
 
                             if log_stats:
-                                summary.add_scalar(f"Loss/Consistency", smoothnes_loss_train)
-                            total_loss += smoothnes_loss_train * args.smoothness_weight
+                                summary.add_scalar(f"Loss/Consistency", s_consitency_loss_train)
+                                summary.add_scalar(f"Loss/Compactness", z_compactness_loss_train)
+                            total_loss += s_consitency_loss_train * args.s_consistency_weight
+                            total_loss += z_compactness_loss_train * args.z_compactness_weight
 
                         total_loss.backward()
 

@@ -102,8 +102,8 @@ def append_train_arguments(parser):
     )
 
     parser.add_argument(
-        '--smoothness_weight', '--cw',
-        help='Smoothness of the embedding',
+        '--s_consistency_weight',
+        help='Consistency of the embedding',
         type=range_limited_float_type(0), default=1.
     )
 
@@ -111,6 +111,12 @@ def append_train_arguments(parser):
         '--smoothness_distance',
         help='Pair distance for smoothness loss',
         type=range_limited_float_type(0, 1), default=1.
+    )
+
+    parser.add_argument(
+        '--z_compactness_weight',
+        help='Compactness of the embedding',
+        type=range_limited_float_type(0), default=1e-4
     )
 
     parser.add_argument(
