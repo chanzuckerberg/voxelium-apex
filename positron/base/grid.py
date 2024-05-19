@@ -372,6 +372,22 @@ def spherical_mask(bz, radial_fraction=1.):
     return r2 < radial_fraction ** 2
 
 
+def get_bounding_box(mask):
+    # Find indices where values are greater than zero
+    indices = torch.nonzero(mask, as_tuple=False)
+
+    # If there are no non-zero values, handle it appropriately
+    if indices.numel() == 0:
+        return None
+    else:
+        # Get the min and max indices along each dimension
+        min_indices = torch.min(indices, dim=0)[0]
+        max_indices = torch.max(indices, dim=0)[0]
+
+        # Bounding box coordinates
+        return min_indices.tolist(), max_indices.tolist()
+
+
 if __name__ == "__main__":
     device = "cuda:0"
     count = 1000

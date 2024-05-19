@@ -21,3 +21,4 @@ dependencies:
       - starfile
       - umap-learn
       - imageio
+      - msgpack

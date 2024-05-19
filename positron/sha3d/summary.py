@@ -213,7 +213,7 @@ def append_args(parser):
     parser.add_argument("--state", "-s", "--s", help="State label to choose", default=None)
     parser.add_argument("--output", "-o", "--o", help="Output file", default=None)
     parser.add_argument("--mask", "-m", "--m", help="Mask file", default=None)
-    parser.add_argument("--no_gzip", "-z", "--z", help="Compress the output file", action="store_true")
+    parser.add_argument("--no_gzip", "-z", "--z", help="Do not compress the output file", action="store_true")
 
 
 def main(args):

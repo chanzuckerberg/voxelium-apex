@@ -4,7 +4,7 @@ import os
 import torch
 import numpy as np
 
-from positron.base import save_mrc
+from positron.base import save_mrc, load_mrc, get_bounding_box
 from positron.sha3d.summary import Summary
 from positron.sha3d.train_utils import setup_device
 
@@ -17,7 +17,8 @@ if __name__ == "__main__":
     parser.add_argument('--mrc', '-r', action='store_true', help="Output basis in MRC files")
     parser.add_argument('--csv', '-c', action='store_true', help="Output CSV file with metadata")
     parser.add_argument('--msgp', '-p', action='store_true', help="Output MessagePack file")
-    parser.add_argument('--gpu', type=str, default=None, help='gpu to use')
+    parser.add_argument('--gpu', type=str, default=None, help='GPU to use')
+    parser.add_argument('--mask', type=str, default=None, help='Mask to use in compression')
     args = parser.parse_args()
 
     device, _ = setup_device(args)
@@ -72,14 +73,24 @@ if __name__ == "__main__":
         np.savetxt(path, s_, delimiter=',', fmt='%.4e')
 
     if args.msgp:
+        x_ = x
+        if args.mask is not None:
+            mask, _, _ = load_mrc(args.mask)
+            mask = torch.from_numpy(mask.copy())
+            ini, end = get_bounding_box(mask > 0)
+            x_ = x[:, ini[0]:end[0], ini[1]:end[1], ini[2]:end[2]]
+
+        print("Basis box size:", x_.shape[1], x_.shape[2], x_.shape[3])
+        print("Number of elements:", x_.numel())
+
         sum_dict = {
             "sha3d_summary_version": "1.0.0",
             "s": s.flatten().detach().cpu().numpy().tolist(),
             "s_shape": list(s.shape),
             "z": z.flatten().detach().cpu().numpy().tolist(),
             "z_shape": list(z.shape),
-            "x": x.flatten().detach().cpu().numpy().tolist(),
-            "x_shape": list(x.shape),
+            "x": x_.flatten().detach().cpu().numpy().tolist(),
+            "x_shape": list(x_.shape),
         }
 
         import msgpack
