@@ -121,9 +121,10 @@ def append_train_arguments(parser):
 
     parser.add_argument(
         '--feature_bandpass',
-        help='Feature extraction band filters (in Ångströms). Comma separated.',
+        help='Feature extraction band filters (in Ångströms). Comma separated, eg. 3-20,5-20',
         type=str, default=None
     )
+    parser.add_argument('--feature_noise_weight', action='store_true')
 
     parser.add_argument(
         '--z_encoder_dims',

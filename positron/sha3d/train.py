@@ -272,12 +272,16 @@ def train(rank, args, ddp_args):
                 y_weight = stats.get_y_weight()
                 x_signal_pow = stats.get_x_signal()
                 x_noise_pow = stats.get_x_noise()
-                snr = y_weight * x_signal_pow
+
+                if args.feature_noise_weight:
+                    wy = y_weight
+                else:
+                    wy = y_weight * x_signal_pow
 
                 s0_ = rec.s0_ema if do_roi else None
 
                 features = feature_extractor(
-                    hv=hv, y=y_ft, wy=snr, wx=x_noise_pow, groups=particle_groups, s0=s0_)
+                    hv=hv, y=y_ft, wy=wy, wx=x_noise_pow, groups=particle_groups, s0=s0_)
 
                 if log_stats:
                     summary.add_scalar("Features/mean", features.mean())
@@ -369,7 +373,6 @@ def train(rank, args, ddp_args):
                             total_loss += regularization_loss * args.regularization
 
                         if args.s_consistency_weight > 0 and args.smoothness_distance > 0:
-
                             distances = torch.cdist(features, features)
                             distances.fill_diagonal_(float('inf'))
                             _, closest_indices = torch.min(distances, dim=1)
