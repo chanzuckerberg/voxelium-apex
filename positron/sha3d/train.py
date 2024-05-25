@@ -212,6 +212,7 @@ def train(rank, args, ddp_args):
     for bf in rec.feature_bandpass:
         print(f" {bf[0]}-{bf[1]}", end="")
     print("")
+    print(f"MSE weight bandpass indices (max index is {rec.max_r}): {rec.mse_bandpass[0]}-{rec.mse_bandpass[1]}")
 
     do_tomo = args.tomo
 
@@ -343,6 +344,7 @@ def train(rank, args, ddp_args):
 
                     y_weight = stats.get_y_weight(eps=1e-3)
                     weight = y_weight / (y_weight.mean() + 1e-3)
+                    weight *= rec.get_mse_weight_spectrum().to(device)
                     weight_grid = Cache.spectra_to_grids(weight, hv['ctfs_'].shape[1:], image_max_r)
                     x_ = torch.view_as_complex(x)
                     y_ft_ = torch.view_as_complex(y_ft)

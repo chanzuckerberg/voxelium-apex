@@ -124,6 +124,12 @@ def append_train_arguments(parser):
         help='Feature extraction band filters (in Ångströms). Comma separated, eg. 3-20,5-20',
         type=str, default=None
     )
+
+    parser.add_argument(
+        '--mse_bandpass',
+        help='MSE weighting band filters (in Ångströms), eg. 3-20',
+        type=str, default=None
+    )
     parser.add_argument('--feature_noise_weight', action='store_true')
 
     parser.add_argument(

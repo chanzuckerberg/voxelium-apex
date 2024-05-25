@@ -62,6 +62,9 @@ def apply_spectral_mask(grid, view_as_complex=False, batched=True, minr=None, ma
     if view_as_complex:
         grid = torch.view_as_complex(grid)
 
+    if minr >= maxr:
+        raise RuntimeError("minr must be smaller than maxr")
+
     spectral_mask = Cache.get_spectral_mask(
         grid.shape[1:] if batched else grid.shape,
         max_r=maxr,
