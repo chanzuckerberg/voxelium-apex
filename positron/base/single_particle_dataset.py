@@ -41,6 +41,7 @@ class SingleParticleDataset(Dataset):
         self.part_norm_correction = None
         self.part_group_id = None
         self.part_group_idx = None
+        self.part_tomo_idx = None
         self.part_preloaded_image = None
         self.nr_parts = None
         self.nr_noise_groups = None
@@ -78,6 +79,7 @@ class SingleParticleDataset(Dataset):
             part_norm_correction: np.array,
             part_group_id: np.array,
             optics_group_stats: np.array,
+            part_tomo_id: np.array = None,
             dtype: np.dtype = np.float32,
             max_res: float = None,
     ) -> None:
@@ -101,6 +103,12 @@ class SingleParticleDataset(Dataset):
         self.part_group_idx = np.array([d[k] for k in self.part_group_id])
         self.nr_noise_groups = len(list(set(self.part_group_idx)))
         self.nr_parts = len(self.part_idx)
+
+        if part_tomo_id is None:
+            self.part_tomo_idx = self.part_group_idx
+        else:
+            d = defaultdict(count(0).__next__)
+            self.part_tomo_idx = np.array([d[k] for k in part_tomo_id])
 
         if np.all(np.isnan(self.part_defocus)):
             self.has_ctf = False
@@ -305,7 +313,8 @@ class SingleParticleDataset(Dataset):
             "translation": torch.from_numpy(self.part_translation[index]),
             "idx": self.part_idx[index],
             "optics_group_idx": og_idx,
-            "group_idx": self.part_group_idx[index]
+            "group_idx": self.part_group_idx[index],
+            "tomo_idx": self.part_tomo_idx[index]
         }
         
         if self.compute_ctf:

@@ -6,7 +6,7 @@ def append_train_arguments(parser):
     parser.add_argument('log_dir', type=str, metavar='log_dir', help='path to load a model')
     parser.add_argument('--particle_diameter', help='size of circular mask (ang)', type=int, default=None)
     parser.add_argument('--circular_mask_thickness', help='thickness of mask (ang)', type=int, default=20)
-    parser.add_argument('--batch_size', help='mini-batch size from training dataset', type=int, default=256)
+    parser.add_argument('--batch_size', help='mini-batch size from training dataset', type=int, default=None)
     parser.add_argument('--overwrite', '--ow', action='store_true')
     parser.add_argument('--gpu', dest='gpu', type=str, default=None, help='gpu to use')
     parser.add_argument('--checkpoint_time', help='Minimum time in minutes between checkpoint saves', type=int,

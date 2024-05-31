@@ -68,12 +68,18 @@ def train(rank, args, ddp_args):
 
     validation_fraction = args.validation_fraction
 
-    train_batch_size = args.batch_size
+    if args.batch_size is None:
+        if args.tomo:
+            train_batch_size = 1024  # Lower SNR per tilt
+        else:
+            train_batch_size = 256
+    else:
+        train_batch_size = args.batch_size
     valid_batch_size = max(int(train_batch_size * validation_fraction) + 2, 8)
 
     if args.tomo:
         sampler = SubtomoValidationSampler(
-            group_indices=dataset.part_group_idx,
+            group_indices=dataset.part_tomo_idx,
             valid_fraction=validation_fraction,
             valid_batch_size=valid_batch_size,
             train_batch_size=train_batch_size
@@ -249,10 +255,10 @@ def train(rank, args, ddp_args):
 
                 summary.set_step(step)
 
-                particle_groups = None
+                tomo_groups = None
                 if do_tomo:
-                    _, particle_groups = torch.unique(sample["group_idx"], return_inverse=True)
-                    particle_groups = particle_groups.to(device)
+                    _, tomo_groups = torch.unique(sample["tomo_idx"], return_inverse=True)
+                    tomo_groups = tomo_groups.to(device)
 
                 particle_idx = sample["idx"]
 
@@ -282,7 +288,7 @@ def train(rank, args, ddp_args):
                 s0_ = rec.s0_ema if do_roi else None
 
                 features = feature_extractor(
-                    hv=hv, y=y_ft, wy=wy, wx=x_noise_pow, groups=particle_groups, s0=s0_)
+                    hv=hv, y=y_ft, wy=wy, wx=x_noise_pow, groups=tomo_groups, s0=s0_)
 
                 if log_stats:
                     summary.add_scalar("Features/mean", features.mean())
@@ -292,15 +298,15 @@ def train(rank, args, ddp_args):
 
                 invert_timing = time.time() - tt
 
-                f = features[particle_groups] if do_tomo else features
+                f = features[tomo_groups] if do_tomo else features
                 hvc.set_metadata('feature', particle_idx, f)
 
                 z, _ = rec.z_encode(features)
                 s = rec.s_encode(z)
 
                 if do_tomo:
-                    z = z[particle_groups]
-                    s = s[particle_groups]
+                    z = z[tomo_groups]
+                    s = s[tomo_groups]
 
                 hvc.set_metadata('z', particle_idx, z)
                 hvc.set_metadata('s', particle_idx, s)
@@ -386,18 +392,18 @@ def train(rank, args, ddp_args):
                             s_noise = rec.s_encode(z_noise)
 
                             if do_tomo:
-                                s_noise = s_noise[particle_groups]
+                                s_noise = s_noise[tomo_groups]
 
                             s_ = s[:, 1:] if do_roi else s
                             s_noise_ = s_noise[:, 1:] if do_roi else s_noise
 
-                            s_consitency_loss_train = (s_ - s_noise_)[train_mask].square().mean()
+                            s_consistency_loss_train = (s_ - s_noise_)[train_mask].square().mean()
                             z_compactness_loss_train = z_noise[train_mask].square().mean()
 
                             if log_stats:
-                                summary.add_scalar(f"Loss/Consistency", s_consitency_loss_train)
+                                summary.add_scalar(f"Loss/Consistency", s_consistency_loss_train)
                                 summary.add_scalar(f"Loss/Compactness", z_compactness_loss_train)
-                            total_loss += s_consitency_loss_train * args.s_consistency_weight
+                            total_loss += s_consistency_loss_train * args.s_consistency_weight
                             total_loss += z_compactness_loss_train * args.z_compactness_weight
 
                         total_loss.backward()

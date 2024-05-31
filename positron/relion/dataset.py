@@ -35,6 +35,7 @@ class RelionDataset:
         self.part_image_file_path_idx = None
         self.part_norm_correction = None
         self.part_group_id = None
+        self.part_tomo_id = None
         self.nr_particles = None
 
         # In data star file
@@ -67,11 +68,11 @@ class RelionDataset:
         self._load_optics_group(data['optics'])
         self._load_particles(data['particles'])
 
-        self.project_root = find_project_root(root_search_path, self.image_file_paths[0])
-
-        # Convert image paths to absolute paths
-        for i in range(len(self.image_file_paths)):
-            self.image_file_paths[i] = os.path.abspath(os.path.join(self.project_root, self.image_file_paths[i]))
+        # self.project_root = find_project_root(root_search_path, self.image_file_paths[0])
+        #
+        # # Convert image paths to absolute paths
+        # for i in range(len(self.image_file_paths)):
+        #     self.image_file_paths[i] = os.path.abspath(os.path.join(self.project_root, self.image_file_paths[i]))
 
         # TODO check cross reference integrity, e.g. all part_group_id exist in noise_group_id
 
@@ -96,6 +97,7 @@ class RelionDataset:
             part_image_file_path_idx=self.part_image_file_path_idx[mask],
             part_norm_correction=self.part_norm_correction[mask],
             part_group_id=self.part_group_id[mask],
+            part_tomo_id=self.part_tomo_id[mask],
             optics_group_stats=self.optics_groups,
             dtype=self.dtype,
             max_res=max_res
@@ -171,6 +173,9 @@ class RelionDataset:
 
         nr_particles = len(particles['rlnImageName'])
 
+        tomo_group_names = np.full(nr_particles, "", dtype=object)
+        use_tomo_names = False
+
         part_group_names = np.full(nr_particles, "", dtype=object)
         use_group_names = False
 
@@ -205,6 +210,11 @@ class RelionDataset:
 
             if 'rlnGroupName' in particles:
                 part_group_names[i] = particles['rlnGroupName'][i]
+
+            # Tomography Group ----------------------------------------------
+            if 'rlnTomoParticleName' in particles:
+                use_tomo_names = True
+                tomo_group_names[i] = particles['rlnTomoParticleName'][i]
 
             # CTF parameters -------------------------------------
             if 'rlnDefocusU' in particles and \
@@ -260,6 +270,9 @@ class RelionDataset:
             for i in range(nr_particles):
                 if self.part_group_id[i] < 0:
                     self.part_group_id[i] = part_group_id[i]
+
+        if use_tomo_names:
+            _, self.part_tomo_id = np.unique(tomo_group_names, return_inverse=True)
 
     @staticmethod
     def _find_star_file_in_path(path: str, type: str = "optimiser") -> str:
