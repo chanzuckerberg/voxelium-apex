@@ -68,13 +68,7 @@ def train(rank, args, ddp_args):
 
     validation_fraction = args.validation_fraction
 
-    if args.batch_size is None:
-        if args.tomo:
-            train_batch_size = 1024  # Lower SNR per tilt
-        else:
-            train_batch_size = 256
-    else:
-        train_batch_size = args.batch_size
+    train_batch_size = args.batch_size
     valid_batch_size = max(int(train_batch_size * validation_fraction) + 2, 8)
 
     if args.tomo:
@@ -398,7 +392,7 @@ def train(rank, args, ddp_args):
                             s_noise_ = s_noise[:, 1:] if do_roi else s_noise
 
                             s_consistency_loss_train = (s_ - s_noise_)[train_mask].square().mean()
-                            z_compactness_loss_train = z_noise[train_mask].square().mean()
+                            z_compactness_loss_train = z_noise.square().mean()
 
                             if log_stats:
                                 summary.add_scalar(f"Loss/Consistency", s_consistency_loss_train)
