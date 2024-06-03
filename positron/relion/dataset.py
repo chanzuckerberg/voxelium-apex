@@ -97,7 +97,7 @@ class RelionDataset:
             part_image_file_path_idx=self.part_image_file_path_idx[mask],
             part_norm_correction=self.part_norm_correction[mask],
             part_group_id=self.part_group_id[mask],
-            part_tomo_id=self.part_tomo_id[mask],
+            part_tomo_id=self.part_tomo_id[mask] if self.part_tomo_id is not None else None,
             optics_group_stats=self.optics_groups,
             dtype=self.dtype,
             max_res=max_res
