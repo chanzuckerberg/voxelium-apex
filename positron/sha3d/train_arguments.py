@@ -114,6 +114,12 @@ def append_train_arguments(parser):
     )
 
     parser.add_argument(
+        '--s_l1_weight',
+        help='S L1 loss',
+        type=range_limited_float_type(0), default=0.
+    )
+
+    parser.add_argument(
         '--z_compactness_weight',
         help='Compactness of the embedding',
         type=range_limited_float_type(0), default=1e-4

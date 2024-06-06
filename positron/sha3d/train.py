@@ -400,6 +400,13 @@ def train(rank, args, ddp_args):
                             total_loss += s_consistency_loss_train * args.s_consistency_weight
                             total_loss += z_compactness_loss_train * args.z_compactness_weight
 
+                        if args.s_l1_weight > 0:
+                            s_ = s[:, 1:] if do_roi else s
+                            s_l1_loss = s_.abs().mean()
+                            total_loss += s_l1_loss * args.s_l1_weight
+                            if log_stats:
+                                summary.add_scalar(f"Loss/S L1", s_l1_loss)
+
                         total_loss.backward()
 
                         if log_stats:
