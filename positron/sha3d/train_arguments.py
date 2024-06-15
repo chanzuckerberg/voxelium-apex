@@ -120,6 +120,12 @@ def append_train_arguments(parser):
     )
 
     parser.add_argument(
+        '--proto_loss_weight',
+        help='Prototype loss weight',
+        type=range_limited_float_type(0), default=0.
+    )
+
+    parser.add_argument(
         '--z_compactness_weight',
         help='Compactness of the embedding',
         type=range_limited_float_type(0), default=1e-4

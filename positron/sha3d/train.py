@@ -400,6 +400,14 @@ def train(rank, args, ddp_args):
                             total_loss += s_consistency_loss_train * args.s_consistency_weight
                             total_loss += z_compactness_loss_train * args.z_compactness_weight
 
+                        if args.proto_loss_weight > 0:
+                            features = feature_extractor(
+                                hv=hv, y=y_ft, wy=y_weight, wx=x_noise_pow, groups=tomo_groups, s0=s0_, bandpass=False)
+                            proto_loss = (features - s).square().mean()
+                            total_loss += proto_loss * args.proto_loss_weight
+                            if log_stats:
+                                summary.add_scalar(f"Loss/Proto", proto_loss)
+
                         if args.s_l1_weight > 0:
                             s_ = s[:, 1:] if do_roi else s
                             s_l1_loss = s_.abs().mean()
