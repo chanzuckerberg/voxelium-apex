@@ -403,7 +403,8 @@ def train(rank, args, ddp_args):
                         if args.proto_loss_weight > 0:
                             features = feature_extractor(
                                 hv=hv, y=y_ft, wy=y_weight, wx=x_noise_pow, groups=tomo_groups, s0=s0_, bandpass=False)
-                            proto_loss = (features - s).square().mean()
+                            s_ = s[:, 1:] if do_roi else s
+                            proto_loss = (features - s_).square().mean()
                             total_loss += proto_loss * args.proto_loss_weight
                             if log_stats:
                                 summary.add_scalar(f"Loss/Proto", proto_loss)
