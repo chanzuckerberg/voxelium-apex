@@ -179,10 +179,11 @@ def train(rank, args, ddp_args):
         lam=args.lam
     ).to(device)
 
+    max_train_epochs = args.max_train_epochs
     if args.only_finalize:
         max_epochs = rec.train_epoch + 1
     else:
-        max_epochs = args.max_train_epochs if args.dont_finalize else args.max_train_epochs + 1
+        max_epochs = max_train_epochs if args.dont_finalize else max_train_epochs + 1
 
     # TODO remove voxel_size input
     feature_extractor = FeatureExtractor(
@@ -224,7 +225,7 @@ def train(rank, args, ddp_args):
             sampler.train()
 
             finalize = False
-            if not finalize and (args.only_finalize or epoch == args.max_train_epochs):
+            if not finalize and (args.only_finalize or epoch == max_train_epochs):
                 print("Finalizing...")
                 finalize = True
                 sampler.eval()
@@ -409,12 +410,19 @@ def train(rank, args, ddp_args):
                             if log_stats:
                                 summary.add_scalar(f"Loss/Proto", proto_loss)
 
-                        if args.s_l1_weight > 0:
+                        if args.l1_schedule:
                             s_ = s[:, 1:] if do_roi else s
                             s_l1_loss = s_.abs().mean()
-                            total_loss += s_l1_loss * args.s_l1_weight
+
+                            if epoch > max_train_epochs - 2:
+                                s_l1_weight = 0.
+                            else:
+                                s_l1_weight = np.cos(2 * np.pi * epoch_partial + np.pi) * 0.5 + 0.5
+
+                            total_loss += s_l1_loss * s_l1_weight * args.s_l1_weight
                             if log_stats:
                                 summary.add_scalar(f"Loss/S L1", s_l1_loss)
+                                summary.add_scalar(f"Loss/S L1 weight", s_l1_weight)
 
                         total_loss.backward()
 
