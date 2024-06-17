@@ -414,7 +414,7 @@ def train(rank, args, ddp_args):
                             s_ = s[:, 1:] if do_roi else s
                             s_l1_loss = s_.abs().mean()
 
-                            if epoch > max_train_epochs - 2:
+                            if epoch > max_train_epochs - 2 or epoch % 2 == 1:
                                 s_l1_weight = 0.
                             else:
                                 s_l1_weight = np.cos(2 * np.pi * epoch_partial + np.pi) * 0.5 + 0.5
