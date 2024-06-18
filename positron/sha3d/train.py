@@ -410,14 +410,19 @@ def train(rank, args, ddp_args):
                             if log_stats:
                                 summary.add_scalar(f"Loss/Proto", proto_loss)
 
-                        if args.l1_schedule:
+                        if args.l1_schedule is not None:
                             s_ = s[:, 1:] if do_roi else s
                             s_l1_loss = s_.abs().mean()
 
-                            if epoch > max_train_epochs - 2 or epoch % 2 == 1:
-                                s_l1_weight = 0.
+                            if args.l1_schedule == "spikes":
+                                if epoch > max_train_epochs - 2 or epoch % 2 == 1:
+                                    s_l1_weight = 0.
+                                else:
+                                    s_l1_weight = np.cos(2 * np.pi * epoch_partial + np.pi) * 0.5 + 0.5
+                            elif args.l1_schedule == "uniform":
+                                s_l1_weight = 1.
                             else:
-                                s_l1_weight = np.cos(2 * np.pi * epoch_partial + np.pi) * 0.5 + 0.5
+                                raise RuntimeError("Unknown L1 scheduler")
 
                             total_loss += s_l1_loss * s_l1_weight * args.s_l1_weight
                             if log_stats:

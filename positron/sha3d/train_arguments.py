@@ -116,13 +116,13 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--s_l1_weight',
         help='S L1 loss',
-        type=range_limited_float_type(0), default=0.1
+        type=range_limited_float_type(0), default=0.01
     )
 
     parser.add_argument(
         '--l1_schedule',
         help='Apply an L1 loss with a schedule',
-        action="store_true"
+        type=str, default=None
     )
 
     parser.add_argument(
