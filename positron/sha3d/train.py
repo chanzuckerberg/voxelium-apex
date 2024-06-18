@@ -412,7 +412,11 @@ def train(rank, args, ddp_args):
 
                         if args.l1_schedule is not None:
                             s_ = s[:, 1:] if do_roi else s
-                            s_l1_loss = s_.abs().mean()
+                            max_index = torch.argmax(s_.abs(), dim=1)
+                            mask = torch.ones_like(s_, dtype=bool)
+                            mask[torch.arange(mask.shape[0]), max_index] = False
+
+                            s_l1_loss = s_[mask].abs().mean()
 
                             if args.l1_schedule == "spikes":
                                 if epoch > max_train_epochs - 2 or epoch % 2 == 1:
@@ -421,6 +425,8 @@ def train(rank, args, ddp_args):
                                     s_l1_weight = np.cos(2 * np.pi * epoch_partial + np.pi) * 0.5 + 0.5
                             elif args.l1_schedule == "uniform":
                                 s_l1_weight = 1.
+                            elif args.l1_schedule == "descend":
+                                s_l1_weight = max(0, 1 - epoch_partial * 3 / max_train_epochs)
                             else:
                                 raise RuntimeError("Unknown L1 scheduler")
 
