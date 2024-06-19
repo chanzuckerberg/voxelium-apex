@@ -332,7 +332,8 @@ def train(rank, args, ddp_args):
 
                     tt = time.time()
 
-                    x_ft = rec.decoder(s=s, max_r=image_max_r, rot_matrices=hv["rot_matrices"])
+                    s_ = s.detach() if args.proto_loss_weight > 0 else s
+                    x_ft = rec.decoder(s=s_, max_r=image_max_r, rot_matrices=hv["rot_matrices"])
 
                     x_ft_shift = fourier_shift_2d(x_ft, hv["shifts_resid"])
                     x = x_ft_shift * hv['ctfs_'][..., None]
@@ -403,7 +404,10 @@ def train(rank, args, ddp_args):
 
                         if args.proto_loss_weight > 0:
                             features = feature_extractor(
-                                hv=hv, y=y_ft, wy=y_weight, wx=x_noise_pow, groups=tomo_groups, s0=s0_, bandpass=False)
+                                hv=hv, y=y_ft, wy=y_weight,
+                                wx=x_noise_pow, groups=tomo_groups,
+                                s0=s0_, bandpass=False
+                            )
                             s_ = s[:, 1:] if do_roi else s
                             proto_loss = (features - s_).square().mean()
                             total_loss += proto_loss * args.proto_loss_weight
