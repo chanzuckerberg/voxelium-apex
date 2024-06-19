@@ -273,7 +273,6 @@ def train(rank, args, ddp_args):
                 # TODO Clean-up
                 y_weight = stats.get_y_weight()
                 x_signal_pow = stats.get_x_signal()
-                x_noise_pow = stats.get_x_noise()
 
                 if args.feature_noise_weight:
                     wy = y_weight
@@ -283,7 +282,7 @@ def train(rank, args, ddp_args):
                 s0_ = rec.s0_ema if do_roi else None
 
                 features = feature_extractor(
-                    hv=hv, y=y_ft, wy=wy, wx=x_noise_pow, groups=tomo_groups, s0=s0_)
+                    hv=hv, y=y_ft, wy=wy, wx=1-stats.get_fsc_spectrum(), groups=tomo_groups, s0=s0_)
 
                 if log_stats:
                     summary.add_scalar("Features/mean", features.mean())
@@ -405,7 +404,7 @@ def train(rank, args, ddp_args):
                         if args.proto_loss_weight > 0:
                             features = feature_extractor(
                                 hv=hv, y=y_ft, wy=y_weight,
-                                wx=x_noise_pow, groups=tomo_groups,
+                                wx=1-stats.get_fsc_spectrum(), groups=tomo_groups,
                                 s0=s0_, bandpass=False
                             )
                             s_ = s[:, 1:] if do_roi else s
