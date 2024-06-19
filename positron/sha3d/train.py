@@ -331,8 +331,7 @@ def train(rank, args, ddp_args):
 
                     tt = time.time()
 
-                    s_ = s.detach() if args.proto_loss_weight > 0 else s
-                    x_ft = rec.decoder(s=s_, max_r=image_max_r, rot_matrices=hv["rot_matrices"])
+                    x_ft = rec.decoder(s=s, max_r=image_max_r, rot_matrices=hv["rot_matrices"])
 
                     x_ft_shift = fourier_shift_2d(x_ft, hv["shifts_resid"])
                     x = x_ft_shift * hv['ctfs_'][..., None]
@@ -357,7 +356,7 @@ def train(rank, args, ddp_args):
                             (weight_grid[spectral_mask].sum() + 1e-12)
                     )
                     if step > 0:
-                        total_loss = weighted_mse
+                        total_loss = weighted_mse * min(1., 1./args.proto_loss_weight)
 
                         fsc_spectrum = stats.get_fsc_spectrum().clip(0.01, 0.99)
 
@@ -404,12 +403,12 @@ def train(rank, args, ddp_args):
                         if args.proto_loss_weight > 0:
                             features = feature_extractor(
                                 hv=hv, y=y_ft, wy=y_weight,
-                                wx=1-stats.get_fsc_spectrum(), groups=tomo_groups,
+                                wx=torch.zeros_like(y_weight), groups=tomo_groups,
                                 s0=s0_, bandpass=False
                             )
                             s_ = s[:, 1:] if do_roi else s
                             proto_loss = (features - s_).square().mean()
-                            total_loss += proto_loss * args.proto_loss_weight
+                            total_loss += proto_loss
                             if log_stats:
                                 summary.add_scalar(f"Loss/Proto", proto_loss)
 
