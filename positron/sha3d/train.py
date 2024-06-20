@@ -356,7 +356,7 @@ def train(rank, args, ddp_args):
                             (weight_grid[spectral_mask].sum() + 1e-12)
                     )
                     if step > 0:
-                        total_loss = weighted_mse * min(1., 1./args.proto_loss_weight)
+                        total_loss = weighted_mse * min(1., 1./(args.proto_loss_weight + 1e-12))
 
                         fsc_spectrum = stats.get_fsc_spectrum().clip(0.01, 0.99)
 
@@ -429,6 +429,8 @@ def train(rank, args, ddp_args):
                                 s_l1_weight = 1.
                             elif args.l1_schedule == "descend":
                                 s_l1_weight = max(0, 1 - epoch_partial * 3 / max_train_epochs)
+                            elif args.l1_schedule == "half":
+                                s_l1_weight = 0 if epoch >= max_train_epochs // 2 else 1.
                             else:
                                 raise RuntimeError("Unknown L1 scheduler")
 
