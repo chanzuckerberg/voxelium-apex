@@ -420,7 +420,7 @@ def train(rank, args, ddp_args):
                             if log_stats:
                                 summary.add_scalar(f"Loss/Proto", proto_loss)
 
-                        if args.s_l1_weight is not None:
+                        if args.s_l1_weight > 0:
                             s_ = s[:, 1:] if do_roi else s
                             s_l1_loss = s_.abs().mean()
 
