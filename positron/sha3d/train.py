@@ -356,7 +356,7 @@ def train(rank, args, ddp_args):
                             (weight_grid[spectral_mask].sum() + 1e-12)
                     )
                     if step > 0:
-                        total_loss = weighted_mse * min(1., 1./(args.proto_loss_weight + 1e-12))
+                        total_loss = weighted_mse
 
                         fsc_spectrum = stats.get_fsc_spectrum().clip(0.01, 0.99)
 
@@ -394,10 +394,18 @@ def train(rank, args, ddp_args):
                             s_consistency_loss_train = (s_ - s_noise_)[train_mask].square().mean()
                             z_compactness_loss_train = z_noise.square().mean()
 
+                            if args.s_consistency_scheduler == "ramp":
+                                weight = min(1., epoch_partial / (max_train_epochs - 1))
+                            elif args.s_consistency_scheduler == "cosine":
+                                weight = cosine_ascend(0, 1, epoch_partial / (max_train_epochs - 1))
+                            else:
+                                weight = 1.
+
                             if log_stats:
+                                summary.add_scalar(f"Loss/Consistency Weight", weight)
                                 summary.add_scalar(f"Loss/Consistency", s_consistency_loss_train)
                                 summary.add_scalar(f"Loss/Compactness", z_compactness_loss_train)
-                            total_loss += s_consistency_loss_train * args.s_consistency_weight
+                            total_loss += s_consistency_loss_train * weight * args.s_consistency_weight
                             total_loss += z_compactness_loss_train * args.z_compactness_weight
 
                         if args.proto_loss_weight > 0:
@@ -412,32 +420,13 @@ def train(rank, args, ddp_args):
                             if log_stats:
                                 summary.add_scalar(f"Loss/Proto", proto_loss)
 
-                        if args.l1_schedule is not None:
+                        if args.s_l1_weight is not None:
                             s_ = s[:, 1:] if do_roi else s
-                            max_index = torch.argmax(s_.abs(), dim=1)
-                            mask = torch.ones_like(s_, dtype=bool)
-                            mask[torch.arange(mask.shape[0]), max_index] = False
+                            s_l1_loss = s_.abs().mean()
 
-                            s_l1_loss = s_[mask].abs().mean()
-
-                            if args.l1_schedule == "spikes":
-                                if epoch > max_train_epochs - 2 or epoch % 2 == 1:
-                                    s_l1_weight = 0.
-                                else:
-                                    s_l1_weight = np.cos(2 * np.pi * epoch_partial + np.pi) * 0.5 + 0.5
-                            elif args.l1_schedule == "uniform":
-                                s_l1_weight = 1.
-                            elif args.l1_schedule == "descend":
-                                s_l1_weight = max(0, 1 - epoch_partial * 3 / max_train_epochs)
-                            elif args.l1_schedule == "half":
-                                s_l1_weight = 0 if epoch >= max_train_epochs // 2 else 1.
-                            else:
-                                raise RuntimeError("Unknown L1 scheduler")
-
-                            total_loss += s_l1_loss * s_l1_weight * args.s_l1_weight
+                            total_loss += s_l1_loss * args.s_l1_weight
                             if log_stats:
                                 summary.add_scalar(f"Loss/S L1", s_l1_loss)
-                                summary.add_scalar(f"Loss/S L1 weight", s_l1_weight)
 
                         total_loss.backward()
 

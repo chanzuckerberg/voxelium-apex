@@ -104,7 +104,13 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--s_consistency_weight',
         help='Consistency of the embedding',
-        type=range_limited_float_type(0), default=1.
+        type=range_limited_float_type(0), default=2.
+    )
+
+    parser.add_argument(
+        '--s_consistency_scheduler',
+        help='Apply consistency loss with a schedule',
+        type=str, default=None
     )
 
     parser.add_argument(
@@ -117,12 +123,6 @@ def append_train_arguments(parser):
         '--s_l1_weight',
         help='S L1 loss',
         type=range_limited_float_type(0), default=0.01
-    )
-
-    parser.add_argument(
-        '--l1_schedule',
-        help='Apply an L1 loss with a schedule',
-        type=str, default=None
     )
 
     parser.add_argument(
