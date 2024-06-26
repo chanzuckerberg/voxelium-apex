@@ -29,12 +29,12 @@ from positron.sha3d.summary import Summary
 from positron.sha3d.train_utils import setup_device
 from positron.sha3d.renderer import volumeRendererProcessLoop
 
-from matplotlib import backend_bases
-backend_bases.NavigationToolbar2.toolitems = (
-    ('Home', 'Reset original view', 'home', 'home'),
-    ('Pan', 'Pan axes with left mouse, zoom with right', 'move', 'pan'),
-    ('Zoom', 'Zoom to rectangle', 'zoom_to_rect', 'zoom'),
-)
+# from matplotlib import backend_bases
+# backend_bases.NavigationToolbar2.toolitems = (
+#     ('Home', 'Reset original view', 'home', 'home'),
+#     ('Pan', 'Pan axes with left mouse, zoom with right', 'move', 'pan'),
+#     ('Zoom', 'Zoom to rectangle', 'zoom_to_rect', 'zoom'),
+# )
 
 
 def make_text_box(ax, text):
