@@ -104,13 +104,31 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--s_consistency_weight',
         help='Consistency of the embedding',
-        type=range_limited_float_type(0), default=1.
+        type=range_limited_float_type(0), default=2.
+    )
+
+    parser.add_argument(
+        '--s_consistency_scheduler',
+        help='Apply consistency loss with a schedule',
+        type=str, default=None
     )
 
     parser.add_argument(
         '--smoothness_distance',
         help='Pair distance for smoothness loss',
         type=range_limited_float_type(0, 1), default=1.
+    )
+
+    parser.add_argument(
+        '--s_l1_weight',
+        help='S L1 loss',
+        type=range_limited_float_type(0), default=0.01
+    )
+
+    parser.add_argument(
+        '--proto_loss_weight',
+        help='Prototype loss weight',
+        type=range_limited_float_type(0), default=0.
     )
 
     parser.add_argument(
@@ -121,9 +139,16 @@ def append_train_arguments(parser):
 
     parser.add_argument(
         '--feature_bandpass',
-        help='Feature extraction band filters (in Ångströms). Comma separated.',
+        help='Feature extraction band filters (in Ångströms). Comma separated, eg. 3-20,5-20',
         type=str, default=None
     )
+
+    parser.add_argument(
+        '--mse_bandpass',
+        help='MSE weighting band filters (in Ångströms), eg. 3-20',
+        type=str, default=None
+    )
+    parser.add_argument('--feature_noise_weight', action='store_true')
 
     parser.add_argument(
         '--z_encoder_dims',

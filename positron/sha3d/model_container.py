@@ -62,6 +62,7 @@ class ModelContainer(nn.Module):
             z_size,
             s_size,
             feature_bandpass_arg,
+            mse_bandpass_arg,
             image_size,
             voxel_size,
             circular_mask_radius_ang,
@@ -98,6 +99,20 @@ class ModelContainer(nn.Module):
         self.max_r = size_to_maxr(image_size)
         self.grid3d_size = image_size + 1 - image_size % 2
 
+        self.mse_bandpass_arg = mse_bandpass_arg
+        self.mse_bandpass = None
+        if mse_bandpass_arg is None:
+            self.mse_bandpass = (2, self.max_r)
+        else:
+            highpass_ang, lowpass_ang = parse_bounds_str(mse_bandpass_arg)[0]
+            if lowpass_ang <= voxel_size * 2:
+                maxr = self.max_r
+            else:
+                maxr = spectral_index_from_resolution(lowpass_ang, image_size, voxel_size)
+            minr = spectral_index_from_resolution(highpass_ang, image_size, voxel_size)
+            minr = min(minr, maxr - 1)
+            self.mse_bandpass = (minr, maxr)
+
         self.feature_bandpass_arg = feature_bandpass_arg
         if feature_bandpass_arg is None:
             self.feature_bandpass = [
@@ -114,11 +129,12 @@ class ModelContainer(nn.Module):
                         self.feature_bandpass.append((0, self.max_r))
                 else:
                     highpass_ang, lowpass_ang = bp
-                    minr = spectral_index_from_resolution(highpass_ang, image_size, voxel_size)
                     if lowpass_ang <= voxel_size * 2:
                         maxr = self.max_r
                     else:
                         maxr = spectral_index_from_resolution(lowpass_ang, image_size, voxel_size)
+                    minr = spectral_index_from_resolution(highpass_ang, image_size, voxel_size)
+                    minr = min(minr, maxr - 1)
                     if (minr, maxr) not in self.feature_bandpass:
                         self.feature_bandpass.append((minr, maxr))
 
@@ -221,6 +237,11 @@ class ModelContainer(nn.Module):
     def get_device(self):
         return next(self.parameters()).device
 
+    def get_mse_weight_spectrum(self):
+        w = torch.full([self.max_r], 1e-3)
+        w[self.mse_bandpass[0]:self.mse_bandpass[1]] = 1.
+        return w
+
     def get_state_dict(self) -> Dict:
         return {
             "type": "MnxVoxelContainer",
@@ -229,6 +250,7 @@ class ModelContainer(nn.Module):
             "z_size": self.z_size,
             "s_size": self.s_size,
             "feature_bandpass_arg": self.feature_bandpass_arg,
+            "mse_bandpass_arg": self.mse_bandpass_arg,
 
             "image_size": self.image_size,
             "voxel_size": self.voxel_size,
@@ -276,6 +298,7 @@ class ModelContainer(nn.Module):
                 train_epoch=state_dict["train_epoch"],
                 train_step=state_dict["train_step"],
                 feature_bandpass_arg=state_dict["feature_bandpass_arg"],
+                mse_bandpass_arg=state_dict["mse_bandpass_arg"],
                 features_mean=state_dict["features_mean"],
                 features_std=state_dict["features_std"],
                 do_roi=state_dict["do_roi"],

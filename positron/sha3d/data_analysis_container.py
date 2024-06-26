@@ -134,6 +134,7 @@ class DatasetAnalysisContainer:
             reconstruction_container = ModelContainer(
                 z_size=args.z_size,
                 s_size=args.s_size,
+                mse_bandpass_arg=args.mse_bandpass,
                 feature_bandpass_arg=args.feature_bandpass,
                 image_size=image_size,
                 voxel_size=pixel_size,

@@ -62,6 +62,9 @@ def apply_spectral_mask(grid, view_as_complex=False, batched=True, minr=None, ma
     if view_as_complex:
         grid = torch.view_as_complex(grid)
 
+    if minr >= maxr:
+        raise RuntimeError("minr must be smaller than maxr")
+
     spectral_mask = Cache.get_spectral_mask(
         grid.shape[1:] if batched else grid.shape,
         max_r=maxr,
@@ -122,7 +125,7 @@ class FeatureExtractor:
         self.s0 = 1
 
     @torch.no_grad()
-    def __call__(self, hv, y, wy, wx, s0=None, groups=None):
+    def __call__(self, hv, y, wy, wx, s0=None, groups=None, bandpass=True):
         c = hv['ctfs_']
         batch_size = c.shape[0]
         grid_shape = list(c.shape[1:])
@@ -133,11 +136,9 @@ class FeatureExtractor:
         wx = Cache.spectra_to_grids(wx, shape=grid_shape)
         wy = Cache.spectra_to_grids(wy, shape=grid_shape)
 
-        map_features = []
-
         do_roi = s0 is not None
 
-        for minr, maxr in self.bandpass:
+        def append_features(minr, maxr):
             x_ = apply_spectral_mask(x, minr=minr, maxr=maxr, view_as_complex=True)
             x_ = x_.view([batch_size, s_size, x_.shape[-1]])
 
@@ -153,10 +154,16 @@ class FeatureExtractor:
             wx_ = apply_spectral_mask(wx, batched=False, minr=minr, maxr=maxr)[None]
             wy_ = apply_spectral_mask(wy, batched=False, minr=minr, maxr=maxr)[None]
 
-            f = get_map_features(x=x_, y=y_, c=c_, wy=wy_, wx=wx_, x0=x0_, groups=groups)
+            return get_map_features(x=x_, y=y_, c=c_, wy=wy_, wx=wx_, x0=x0_, groups=groups)
 
-            map_features.append(f)
+        if bandpass:
+            map_features = []
+            for minr, maxr in self.bandpass:
+                f = append_features(minr, maxr)
+                map_features.append(f)
+            features = torch.cat(map_features, 1)
+        else:
+            features = append_features(0, self.image_max_r)
 
-        features = torch.cat(map_features, 1)
         return features
 

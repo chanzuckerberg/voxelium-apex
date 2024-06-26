@@ -73,7 +73,7 @@ def train(rank, args, ddp_args):
 
     if args.tomo:
         sampler = SubtomoValidationSampler(
-            group_indices=dataset.part_group_idx,
+            group_indices=dataset.part_tomo_idx,
             valid_fraction=validation_fraction,
             valid_batch_size=valid_batch_size,
             train_batch_size=train_batch_size
@@ -179,10 +179,11 @@ def train(rank, args, ddp_args):
         lam=args.lam
     ).to(device)
 
+    max_train_epochs = args.max_train_epochs
     if args.only_finalize:
         max_epochs = rec.train_epoch + 1
     else:
-        max_epochs = args.max_train_epochs if args.dont_finalize else args.max_train_epochs + 1
+        max_epochs = max_train_epochs if args.dont_finalize else max_train_epochs + 1
 
     # TODO remove voxel_size input
     feature_extractor = FeatureExtractor(
@@ -212,6 +213,7 @@ def train(rank, args, ddp_args):
     for bf in rec.feature_bandpass:
         print(f" {bf[0]}-{bf[1]}", end="")
     print("")
+    print(f"MSE weight bandpass indices (max index is {rec.max_r}): {rec.mse_bandpass[0]}-{rec.mse_bandpass[1]}")
 
     do_tomo = args.tomo
 
@@ -223,7 +225,7 @@ def train(rank, args, ddp_args):
             sampler.train()
 
             finalize = False
-            if not finalize and (args.only_finalize or epoch == args.max_train_epochs):
+            if not finalize and (args.only_finalize or epoch == max_train_epochs):
                 print("Finalizing...")
                 finalize = True
                 sampler.eval()
@@ -248,10 +250,10 @@ def train(rank, args, ddp_args):
 
                 summary.set_step(step)
 
-                particle_groups = None
+                tomo_groups = None
                 if do_tomo:
-                    _, particle_groups = torch.unique(sample["group_idx"], return_inverse=True)
-                    particle_groups = particle_groups.to(device)
+                    _, tomo_groups = torch.unique(sample["tomo_idx"], return_inverse=True)
+                    tomo_groups = tomo_groups.to(device)
 
                 particle_idx = sample["idx"]
 
@@ -271,13 +273,16 @@ def train(rank, args, ddp_args):
                 # TODO Clean-up
                 y_weight = stats.get_y_weight()
                 x_signal_pow = stats.get_x_signal()
-                x_noise_pow = stats.get_x_noise()
-                snr = y_weight * x_signal_pow
+
+                if args.feature_noise_weight:
+                    wy = y_weight
+                else:
+                    wy = y_weight * x_signal_pow
 
                 s0_ = rec.s0_ema if do_roi else None
 
                 features = feature_extractor(
-                    hv=hv, y=y_ft, wy=snr, wx=x_noise_pow, groups=particle_groups, s0=s0_)
+                    hv=hv, y=y_ft, wy=wy, wx=1-stats.get_fsc_spectrum(), groups=tomo_groups, s0=s0_)
 
                 if log_stats:
                     summary.add_scalar("Features/mean", features.mean())
@@ -287,15 +292,15 @@ def train(rank, args, ddp_args):
 
                 invert_timing = time.time() - tt
 
-                f = features[particle_groups] if do_tomo else features
+                f = features[tomo_groups] if do_tomo else features
                 hvc.set_metadata('feature', particle_idx, f)
 
                 z, _ = rec.z_encode(features)
                 s = rec.s_encode(z)
 
                 if do_tomo:
-                    z = z[particle_groups]
-                    s = s[particle_groups]
+                    z = z[tomo_groups]
+                    s = s[tomo_groups]
 
                 hvc.set_metadata('z', particle_idx, z)
                 hvc.set_metadata('s', particle_idx, s)
@@ -339,6 +344,7 @@ def train(rank, args, ddp_args):
 
                     y_weight = stats.get_y_weight(eps=1e-3)
                     weight = y_weight / (y_weight.mean() + 1e-3)
+                    weight *= rec.get_mse_weight_spectrum().to(device)
                     weight_grid = Cache.spectra_to_grids(weight, hv['ctfs_'].shape[1:], image_max_r)
                     x_ = torch.view_as_complex(x)
                     y_ft_ = torch.view_as_complex(y_ft)
@@ -369,7 +375,6 @@ def train(rank, args, ddp_args):
                             total_loss += regularization_loss * args.regularization
 
                         if args.s_consistency_weight > 0 and args.smoothness_distance > 0:
-
                             distances = torch.cdist(features, features)
                             distances.fill_diagonal_(float('inf'))
                             _, closest_indices = torch.min(distances, dim=1)
@@ -381,19 +386,47 @@ def train(rank, args, ddp_args):
                             s_noise = rec.s_encode(z_noise)
 
                             if do_tomo:
-                                s_noise = s_noise[particle_groups]
+                                s_noise = s_noise[tomo_groups]
 
                             s_ = s[:, 1:] if do_roi else s
                             s_noise_ = s_noise[:, 1:] if do_roi else s_noise
 
-                            s_consitency_loss_train = (s_ - s_noise_)[train_mask].square().mean()
-                            z_compactness_loss_train = z_noise[train_mask].square().mean()
+                            s_consistency_loss_train = (s_ - s_noise_)[train_mask].square().mean()
+                            z_compactness_loss_train = z_noise.square().mean()
+
+                            if args.s_consistency_scheduler == "ramp":
+                                weight = min(1., epoch_partial / (max_train_epochs - 1))
+                            elif args.s_consistency_scheduler == "cosine":
+                                weight = cosine_ascend(0, 1, epoch_partial / (max_train_epochs - 1))
+                            else:
+                                weight = 1.
 
                             if log_stats:
-                                summary.add_scalar(f"Loss/Consistency", s_consitency_loss_train)
+                                summary.add_scalar(f"Loss/Consistency Weight", weight)
+                                summary.add_scalar(f"Loss/Consistency", s_consistency_loss_train)
                                 summary.add_scalar(f"Loss/Compactness", z_compactness_loss_train)
-                            total_loss += s_consitency_loss_train * args.s_consistency_weight
+                            total_loss += s_consistency_loss_train * weight * args.s_consistency_weight
                             total_loss += z_compactness_loss_train * args.z_compactness_weight
+
+                        if args.proto_loss_weight > 0:
+                            features = feature_extractor(
+                                hv=hv, y=y_ft, wy=y_weight,
+                                wx=torch.zeros_like(y_weight), groups=tomo_groups,
+                                s0=s0_, bandpass=False
+                            )
+                            s_ = s[:, 1:] if do_roi else s
+                            proto_loss = (features - s_).square().mean()
+                            total_loss += proto_loss
+                            if log_stats:
+                                summary.add_scalar(f"Loss/Proto", proto_loss)
+
+                        if args.s_l1_weight > 0:
+                            s_ = s[:, 1:] if do_roi else s
+                            s_l1_loss = s_.abs().mean()
+
+                            total_loss += s_l1_loss * args.s_l1_weight
+                            if log_stats:
+                                summary.add_scalar(f"Loss/S L1", s_l1_loss)
 
                         total_loss.backward()
 
