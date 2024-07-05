@@ -39,6 +39,7 @@ def main():
         args.func(args)
     except TypeError:
         parser.print_help()
+        raise TypeError  # Let's keep this here for now
 
 
 if __name__ == '__main__':
