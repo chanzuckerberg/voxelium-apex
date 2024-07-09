@@ -2,7 +2,7 @@ name: positron
 channels:
   - defaults
 dependencies:
-  - python=3.11
+  - python==3.11
   - setuptools
   - pip
   - eigen
@@ -10,7 +10,7 @@ dependencies:
   - pip:
       - matplotlib
       - mrcfile
-      - numpy
+      - numpy==1.*
       - vtk
       - scikit-learn
       - scipy
