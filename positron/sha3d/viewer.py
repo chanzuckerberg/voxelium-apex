@@ -12,14 +12,12 @@ import argparse
 import threading
 
 import matplotlib.pylab as plt
-from matplotlib.widgets import Button
+from matplotlib.widgets import Button, PolygonSelector
+from matplotlib.path import Path
 
 import torch
 
 import multiprocessing as mp
-
-from matplotlib.widgets import PolygonSelector
-from matplotlib.path import Path
 
 from positron.base import get_spectral_indices, spectra_to_grid, dft, idft
 from positron.base.grid import load_mrc, save_mrc, gaussian_blur
@@ -49,9 +47,28 @@ def make_text_box(ax, text):
     )
 
 
+DEBUG = False
+DEBUG_COUNTER = 0
+
+
+def debug_print(msg):
+    global DEBUG, DEBUG_COUNTER
+    if DEBUG:
+        print(f"Viewer {str(DEBUG_COUNTER).zfill(3)}: {msg}")
+        DEBUG_COUNTER += 1
+
+
+def debug_decorator(func):
+    def wrapper(*args, **kwargs):
+        debug_print(f"{func.__name__}()")
+        return func(*args, **kwargs)
+    return wrapper
+
+
 class Viewer:
     @torch.no_grad()
     def __init__(self, summary, embed, structure_factors, device, title=None, bfac_step=20):
+        debug_print("init() begin")
         self.summary = summary
         self.embed = embed
         self.structure_factors = structure_factors
@@ -178,15 +195,20 @@ class Viewer:
         self.hm_cm = get_default_cmap()
 
         self.marker_size = 0.05
-        self.hm_bins = 500
-        self.hm_lim = 2
+        self.hm_bins = 800
+        self.hm_lim = 3
 
         c = np.unique(self.coord, axis=0)
-        c = (c / (3 * self.hm_lim) + 0.5) * self.hm_bins
 
+        c = (c / (3 * self.hm_lim) + 0.5) * self.hm_bins
         mask = (0 <= c) & (c < self.hm_bins - 0.5)
         mask = mask.all(axis=1)
         c = np.round(c[mask]).astype(int)
+
+        # self.z_min = np.min(c, axis=0)
+        # self.z_max = np.max(c, axis=0)
+        # c = (c - self.z_min) / (self.z_max - self.z_min) * (self.hm_bins - 1)
+        # c = np.round(c).astype(int)
 
         self.hm_sharp = np.zeros([self.hm_bins, self.hm_bins])
         np.add.at(self.hm_sharp, (c[:, 1], c[:, 0]), 1)
@@ -197,8 +219,9 @@ class Viewer:
 
         self.set_default_volume()  # Warm up
 
-        click_connect = self.fig_hm.canvas.mpl_connect('button_press_event', self.onClickHm)
-        key_press = self.fig_hm.canvas.mpl_connect('key_press_event', self.onKeyPressEvent)
+        self.fig_hm.canvas.mpl_connect('button_press_event', self.onClickHm)
+        self.fig_hm.canvas.mpl_connect('key_press_event', self.onKeyPressEvent)
+        self.ax_hm.callbacks.connect('xlim_changed', self.axis_change_event)
 
         # VOLUME RENDERER PROCESS ---------------------------------------------------------------------------
 
@@ -211,29 +234,42 @@ class Viewer:
         )
         volume_render_process.start()
 
-        threading.Timer(0.1, self.volume_renderer_event).start()
+        volume_render_event_thread = threading.Thread(target=self.volume_renderer_event)
+        volume_render_event_thread.start()
 
         # Start process loop --------------------------------------------------------------------------------
+
+        debug_print("init() show")
 
         try:
             plt.show()
         except KeyboardInterrupt:
             print("Exiting!")
 
+        debug_print("init() exit")
+
         self.volume_render_input_queue.put("exit")
         self.volume_render_output_queue.put("exit")
         volume_render_process.join()
         volume_render_process.terminate()
+        volume_render_event_thread.join()
 
+    @debug_decorator
+    def axis_change_event(self, event_ax):
+        print("New axis y-limits are",  event_ax.get_ylim())
+
+    @debug_decorator
     def get_volume(self, sf):
         vol = self.summary(sf.to(self.device))
         return vol.detach().cpu().numpy()
 
+    @debug_decorator
     def set_default_volume(self):
         self.volume_render_input_queue.put([
             self.get_volume(self.structure_factors_mean)
         ])
 
+    @debug_decorator
     def clear_selection(self, _=None):
         if len(self.volumes) == 0:
             return
@@ -249,6 +285,7 @@ class Viewer:
         self.set_default_volume()
         self.fig_hm.canvas.draw()
 
+    @debug_decorator
     def clear_subset_selection(self, _=None):
         if self.selector_obj is not None:
             self.selector_obj.clear()
@@ -256,6 +293,7 @@ class Viewer:
             self.selector_obj = None
             self.subset_selection_ongoing = False
 
+    @debug_decorator
     def ui_visible(self, visible=False):
         self.clear_button_axes.set_visible(visible)
         self.subset_button_axes.set_visible(visible)
@@ -272,13 +310,15 @@ class Viewer:
         self.bfactor_text_axes.set_visible(visible)
         self.iso_value_text_axes.set_visible(visible)
 
+    @debug_decorator
     def save_dataset_indices(self, vertices):
         path = Path(vertices)
         mask = path.contains_points(self.coord)
         indices = np.arange(0, self.coord.shape[0])[mask]
 
         path = f"subset_{self.subset_index}.csv"
-        print(f"Saving indices of {len(indices)} selected particles to {path}")
+        percent = round((len(indices) / self.coord.shape[0]) * 100, 2)
+        print(f"Saving indices of {len(indices)} ({percent}%) selected particles to {path}")
         np.savetxt(path, indices, delimiter=',', fmt='%d')
 
         path = f"subset_{self.subset_index}.png"
@@ -290,6 +330,7 @@ class Viewer:
         self.subset_index += 1
         self.clear_subset_selection()
 
+    @debug_decorator
     def subset_selection(self, _=None):
         if self.selector_obj is None and not self.subset_selection_ongoing:
             self.subset_selection_ongoing = True
@@ -303,6 +344,7 @@ class Viewer:
         else:
             self.clear_subset_selection()
 
+    @debug_decorator
     def save_selected_volumes(self, _=None):
         print('Saving selected structures to MRC-files:')
         for i, v in enumerate(self.volumes):
@@ -310,10 +352,12 @@ class Viewer:
             print(f" {path}")
             save_mrc(v, path)
 
+    @debug_decorator
     def save_volume_images(self, _=None):
         self.volume_render_input_queue.put("save_images")
 
     @torch.no_grad()
+    @debug_decorator
     def update_hm(self):
         blur = gaussian_blur(self.hm_sharp, self.hm_sigma)
 
@@ -323,11 +367,27 @@ class Viewer:
         self.ax_hm.set_xlim([-l, l])
         self.ax_hm.set_ylim([-l, l])
 
+        # m = np.max(self.hm_sharp) * 0.5
+        # self.hm_sharp[self.hm_sharp > m] = m
+        #
+        # blur = gaussian_blur(self.hm_sharp, self.hm_sigma)
+        #
+        # self.ax_hm.imshow(
+        #     blur,
+        #     cmap=self.hm_cm,
+        #     extent=(self.z_min[0], self.z_max[0], self.z_max[1], self.z_min[1])
+        # )
+        #
+        # self.ax_hm.set_xlim([self.z_min[0], self.z_max[0]])
+        # self.ax_hm.set_ylim([self.z_min[1], self.z_max[1]])
+
+
         self.hm_sigma_text.set_text(f"Smooth\n{round(self.hm_sigma)}")
         self.fig_hm.canvas.blit(self.hm_text_axes.bbox)
         self.fig_hm.canvas.draw()
 
     @torch.no_grad()
+    @debug_decorator
     def update_bfactor(self):
         idx = torch.linspace(0, 2, self.ft_shape[-1] * 2, device=self.device)
         res2 = torch.square(idx / self.voxel_size)
@@ -353,28 +413,35 @@ class Viewer:
         self.fig_hm.canvas.blit(self.iso_value_text_axes.bbox)
         self.fig_hm.canvas.draw()
 
+    @debug_decorator
     def raise_hm_sigma(self, _=None):
         self.hm_sigma += 1
         self.update_hm()
 
+    @debug_decorator
     def lower_hm_sigma(self, _=None):
         self.hm_sigma = max(2, self.hm_sigma - 1)
         self.update_hm()
 
+    @debug_decorator
     def raise_bfactor(self, _=None):
         self.bfactor += self.bfactor_step
         self.update_bfactor()
 
+    @debug_decorator
     def lower_bfactor(self, _=None):
         self.bfactor -= self.bfactor_step
         self.update_bfactor()
 
+    @debug_decorator
     def raise_iso_value(self, _=None):
         self.volume_render_input_queue.put("up")
 
+    @debug_decorator
     def lower_iso_value(self, _=None):
         self.volume_render_input_queue.put("down")
 
+    @debug_decorator
     def onClickHm(self, event):
         if event.xdata is None or event.ydata is None:
             return
@@ -400,9 +467,9 @@ class Viewer:
                     self.circles_coord.append(xy)
                     self.selected_ids.append(idx)
                     self.volumes.append(vol)
-                    print("Selected point index", idx)
-                    print("S =", list(self.structure_factors[idx].cpu().detach().numpy()))
-                    print("Z =", list(self.embed[idx].cpu().detach().numpy()))
+                    # print("Selected point index", idx)
+                    # print("S =", list(self.structure_factors[idx].cpu().detach().numpy()))
+                    # print("Z =", list(self.embed[idx].cpu().detach().numpy()))
                     self.ax_hm.add_patch(circle)
                     state_change = True
 
@@ -427,6 +494,7 @@ class Viewer:
                 self.volume_render_input_queue.put(self.volumes)
             self.fig_hm.canvas.draw()
 
+    @debug_decorator
     def handle_key_press(self, key):
         if key == 'escape':
             self.clear_selection()
@@ -436,28 +504,31 @@ class Viewer:
         elif key == "right":
             self.raise_bfactor()
 
+    @debug_decorator
     def onKeyPressEvent(self, event):
         key = event.key
         self.handle_key_press(key)
         self.volume_render_input_queue.put(key)
 
+    @debug_decorator
     def volume_renderer_event(self):
-        task = self.volume_render_output_queue.get()
+        while True:
+            task = self.volume_render_output_queue.get()
 
-        if task is not None:
-            if isinstance(task, str):
+            if task is not None and isinstance(task, str):
+                debug_print(f"volume_renderer_event() task: {task}")
+
                 if task == "exit":
-                    return
-
-                if len(task) > 10 and task[:10] == "iso_value_":
+                    break
+                elif len(task) > 10 and task[:10] == "iso_value_":
                     iso_value = round(float(task[10:]), 3)
                     self.iso_value_text.set_text(f"Iso value\n{iso_value}")
                     self.fig_hm.canvas.blit(self.iso_value_text_axes.bbox)
                     self.fig_hm.canvas.draw()
+                elif len(task) > 4 and task[:4] == "key_":
+                    self.handle_key_press(task[4:].lower())
 
-            self.handle_key_press(task.lower())
-
-        threading.Timer(0, self.volume_renderer_event).start()
+        debug_print(f"volume_renderer_event() loop exit")
 
 
 def main(args):

@@ -6,8 +6,26 @@ import numpy as np
 from positron.sha3d.vtk_utils import initialize_vtk_resourses, \
     make_volume_actor, numpy_volume_as_vtk_image_data, rgb_hex_to_dec
 
+DEBUG = False
+DEBUG_COUNTER = 0
+
+
+def debug_print(msg):
+    global DEBUG, DEBUG_COUNTER
+    if DEBUG:
+        print(f"Render {str(DEBUG_COUNTER).zfill(3)}: {msg}")
+        DEBUG_COUNTER += 1
+
+
+def debug_decorator(func):
+    def wrapper(*args, **kwargs):
+        debug_print(f"{func.__name__}()")
+        return func(*args, **kwargs)
+    return wrapper
+
 
 class VolumeRenderer:
+    @debug_decorator
     def __init__(
             self,
             input_queue, output_queue,
@@ -32,6 +50,7 @@ class VolumeRenderer:
             windowName=windowName
         )
 
+    @debug_decorator
     def setVolumes(self, volumes):
         if volumes is None:
             return
@@ -50,9 +69,9 @@ class VolumeRenderer:
         self.iso_steps = float(np.std(volumes[0]) / 2.)
         if self.iso_value is None:
             self.iso_value = float(np.mean(volumes[0]) * 4.) * 4.
+            self.output_queue.put(f"iso_value_{self.iso_value}")
 
-        self.output_queue.put(f"iso_value_{self.iso_value}")
-
+    @debug_decorator
     def updateActors(self):
         self.removeCurrentActor()
         if self.nr_vols == 0:
@@ -66,6 +85,7 @@ class VolumeRenderer:
             else:
                 self.setCurrentActor(0)
 
+    @debug_decorator
     def removeCurrentActor(self):
         if self.current_actor is not None:
             self.renderer.RemoveActor(self.current_actor)
@@ -104,6 +124,7 @@ class VolumeRenderer:
             self.rock_ascend = False
             self.current_actor_idx = self.nr_vols - 2
 
+    @debug_decorator
     def handleKeyPress(self, key):
         if self.nr_vols == 0:
             return
@@ -111,10 +132,10 @@ class VolumeRenderer:
         if key == "up" or key == "down":
             if key == "up":
                 self.iso_value = max(self.iso_min, self.iso_value + self.iso_steps)
+                self.output_queue.put(f"iso_value_{self.iso_value}")
             elif key == "down":
                 self.iso_value = min(self.iso_max, self.iso_value - self.iso_steps)
-
-            self.output_queue.put(f"iso_value_{self.iso_value}")
+                self.output_queue.put(f"iso_value_{self.iso_value}")
 
             self.updateCurrentActorIndex()
             self.updateActors()
@@ -178,19 +199,21 @@ class VolumeRenderer:
         self.updateCurrentActorIndex()
         return True
 
+    @debug_decorator
     def KeyPressEvent(self, obj, _):
         key = obj.GetKeySym().lower()
-        self.output_queue.put(key)
+        self.output_queue.put(f"key_{key}")
         return self.handleKeyPress(key)
 
+    @debug_decorator
     def start(self):
-        # Wait for first volume
+        # Wait for first volume before initializing
         while True:
-            if not self.input_queue.empty():
+            if self.input_queue.empty():
+                time.sleep(0.1)
+            else:
                 if self.TimerEvent():
                     break
-            else:
-                time.sleep(0.1)
 
         self.interactor.Initialize()
         self.interactor.AddObserver('TimerEvent', self.TimerEvent)
@@ -203,6 +226,7 @@ class VolumeRenderer:
         self.interactor.TerminateApp()
 
     @staticmethod
+    @debug_decorator
     def startNewProcess(input_queue, output_queue):
         vr = VolumeRenderer(input_queue, output_queue)
         vr.start()

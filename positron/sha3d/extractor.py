@@ -4,7 +4,7 @@ import os
 import torch
 import numpy as np
 
-from positron.base import save_mrc, load_mrc, get_bounding_box
+from positron.base import save_mrc, load_mrc, get_bounding_box, gaussian_blur
 from positron.sha3d.summary import Summary
 from positron.sha3d.train_utils import setup_device
 
@@ -19,6 +19,10 @@ if __name__ == "__main__":
     parser.add_argument('--msgp', '-p', action='store_true', help="Output MessagePack file")
     parser.add_argument('--gpu', type=str, default=None, help='GPU to use')
     parser.add_argument('--mask', type=str, default=None, help='Mask to use in compression')
+    parser.add_argument('--z-bounds', type=str, default=None, help='Bonding box of z [left right bottom top]')
+    parser.add_argument('--z-bins', type=str, default=500, help='Z image size')
+    parser.add_argument('--z-smooth', type=str, default=4, help='Z image smoothing')
+    parser.add_argument('--plot', action='store_true', help="Plot Z image")
     args = parser.parse_args()
 
     device, _ = setup_device(args)
@@ -73,7 +77,31 @@ if __name__ == "__main__":
         np.savetxt(path, s_, delimiter=',', fmt='%.4e')
 
     if args.msgp:
-        x_ = x
+        x_ = x.detach().cpu().numpy()
+        s_ = s.detach().cpu().numpy()
+        z_ = z.detach().cpu().numpy()
+
+        print("Initial number of particles:", len(z_))
+
+        _, unique_indices = np.unique(z_, axis=0, return_index=True)
+        z_ = z_[unique_indices]
+        s_ = s_[unique_indices]
+
+        print("Number of particles with unique Z:", len(z_))
+
+        if args.z_bounds is not None:
+            tokens = args.z_bounds.split(" ")
+            left = float(tokens[0])
+            right = float(tokens[1])
+            bottom = float(tokens[2])
+            top = float(tokens[3])
+            mask = ((left < z_[:, 0]) & (z_[:, 0] < right) &
+                    (bottom < z_[:, 1]) & (z_[:, 1] < top))
+            s_ = s_[mask]
+            z_ = z_[mask]
+
+            print("Number of particles after bounds:", len(z_))
+
         if args.mask is not None:
             mask, _, _ = load_mrc(args.mask)
             mask = torch.from_numpy(mask.copy())
@@ -82,20 +110,51 @@ if __name__ == "__main__":
 
         print("Basis box size:", x_.shape[1], x_.shape[2], x_.shape[3])
         print("Number of elements:", x_.numel())
+        print("Final number of particles:", len(z_))
+
+        bins = args.z_bins
+        z_min = np.min(z_, axis=0)
+        z_max = np.max(z_, axis=0)
+        c = (z_ - z_min) / (z_max - z_min) * (bins - 1)
+
+        c = np.round(c).astype(int)
+        hm = np.zeros([bins, bins], dtype=int)
+        np.add.at(hm, (c[:, 1], c[:, 0]), 1)
+        hm_blur = gaussian_blur(hm.astype(np.float32), args.z_smooth)
+
+        if args.plot:
+            import matplotlib.pylab as plt
+            plt.imshow(hm_blur)
+            plt.show()
+
+        from scipy.spatial import cKDTree
+        _, unique_indices = np.unique(c, axis=0, return_index=True)
+        c = c[unique_indices]
+        s_ = s_[unique_indices]
+        tree = cKDTree(c)
+
+        z2s = np.full([bins, bins], -1, dtype=int)
+        for i in range(bins):
+            for j in range(bins):
+                p = np.array([i, j])
+                distance, index = tree.query(p)
+                if distance < 5:
+                    z2s[i, j] = index
 
         sum_dict = {
             "sha3d_summary_version": "1.0.0",
-            "s": s.flatten().detach().cpu().numpy().tolist(),
-            "s_shape": list(s.shape),
-            "z": z.flatten().detach().cpu().numpy().tolist(),
-            "z_shape": list(z.shape),
-            "x": x_.flatten().detach().cpu().numpy().tolist(),
+            "s": s_.flatten().tolist(),
+            "s_shape": list(s_.shape),
+            "map": z2s.flatten().tolist(),
+            "hm": hm_blur.flatten().tolist(),
+            "hm_shape": list(hm.shape),
+            "x": x_.flatten().tolist(),
             "x_shape": list(x_.shape),
         }
 
         import msgpack
         path = os.path.join(root_path, "sum.msgpack")
         with open(path, 'wb') as file:
-            packed = msgpack.pack(sum_dict, file, use_single_float=True)
+            packed = msgpack.pack(sum_dict, file, use_single_float=True, use_bin_type=True)
 
         print(f"Writing MessagePack file:", path)
