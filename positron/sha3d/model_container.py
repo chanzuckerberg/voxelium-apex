@@ -102,7 +102,7 @@ class ModelContainer(nn.Module):
         self.mse_bandpass_arg = mse_bandpass_arg
         self.mse_bandpass = None
         if mse_bandpass_arg is None:
-            self.mse_bandpass = (2, self.max_r)
+            self.mse_bandpass = (1, self.max_r)
         else:
             highpass_ang, lowpass_ang = parse_bounds_str(mse_bandpass_arg)[0]
             if lowpass_ang <= voxel_size * 2:
@@ -116,9 +116,9 @@ class ModelContainer(nn.Module):
         self.feature_bandpass_arg = feature_bandpass_arg
         if feature_bandpass_arg is None:
             self.feature_bandpass = [
-                (2, self.max_r),
-                (2, self.max_r // 2),
-                (2, self.max_r // 3),
+                (1, self.max_r),
+                (1, self.max_r // 2),
+                (1, self.max_r // 3),
             ]
         else:
             self.feature_bandpass = []
@@ -238,7 +238,7 @@ class ModelContainer(nn.Module):
         return next(self.parameters()).device
 
     def get_mse_weight_spectrum(self):
-        w = torch.full([self.max_r], 1e-3)
+        w = torch.full([self.max_r], 1e-2)
         w[self.mse_bandpass[0]:self.mse_bandpass[1]] = 1.
         return w
 

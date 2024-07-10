@@ -68,11 +68,11 @@ class RelionDataset:
         self._load_optics_group(data['optics'])
         self._load_particles(data['particles'])
 
-        # self.project_root = find_project_root(root_search_path, self.image_file_paths[0])
-        #
-        # # Convert image paths to absolute paths
-        # for i in range(len(self.image_file_paths)):
-        #     self.image_file_paths[i] = os.path.abspath(os.path.join(self.project_root, self.image_file_paths[i]))
+        self.project_root = find_project_root(root_search_path, self.image_file_paths[0])
+
+        # Convert image paths to absolute paths
+        for i in range(len(self.image_file_paths)):
+            self.image_file_paths[i] = os.path.abspath(os.path.join(self.project_root, self.image_file_paths[i]))
 
         # TODO check cross reference integrity, e.g. all part_group_id exist in noise_group_id
 
