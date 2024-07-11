@@ -161,6 +161,7 @@ def append_train_arguments(parser):
         help='Comma separated integers used for S-encoder hidden layer dimensions.',
         type=str, default="128,128,128,128"
     )
+    parser.add_argument('--norm', action='store_true')
 
     parser.add_argument(
         "--dtype", 

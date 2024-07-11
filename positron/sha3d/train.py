@@ -296,7 +296,7 @@ def train(rank, args, ddp_args):
                 hvc.set_metadata('feature', particle_idx, f)
 
                 z, _ = rec.z_encode(features)
-                s = rec.s_encode(z)
+                s = rec.s_encode(z, features=features if not finalize else None)
 
                 if do_tomo:
                     z = z[tomo_groups]
@@ -383,7 +383,7 @@ def train(rank, args, ddp_args):
                             features_ = features + feature_noise * args.smoothness_distance
 
                             z_noise, _ = rec.z_encode(features_)
-                            s_noise = rec.s_encode(z_noise)
+                            s_noise = rec.s_encode(z_noise, features=features_)
 
                             if do_tomo:
                                 s_noise = s_noise[tomo_groups]

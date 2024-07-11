@@ -67,6 +67,7 @@ class ModelContainer(nn.Module):
             voxel_size,
             circular_mask_radius_ang,
             circular_mask_thickness_ang,
+            norm_network=False,
             z_encoder_dims=None,
             s_encoder_dims=None,
             train_epoch=0,
@@ -154,6 +155,15 @@ class ModelContainer(nn.Module):
             resid_count=4,
         )
 
+        self.norm_network = None
+        if norm_network:
+            self.norm_network = Encoder(
+                input_dim=feature_size,
+                output_dim=1,
+                resid_dim=64,
+                resid_count=4,
+            )
+
         self.feature_size = feature_size
         self.z_encoder_dims = z_encoder_dims
         self.s_encoder_dims = s_encoder_dims
@@ -195,14 +205,14 @@ class ModelContainer(nn.Module):
         else:
             return (features - self.features_mean) / (self.features_std + eps)
 
-    def z_encode(self, x, noise=0):
-        out = self.z_encoder(x, noise=noise)
-        mu = out[:, :out.size(1) // 2]
-        log_var = out[:, out.size(1) // 2:]
-        return mu, log_var
+    def z_encode(self, features, noise=0):
+        nn = self.z_encoder(features, noise=noise)
+        z = nn[:, :nn.size(1) // 2]
+        log_var = nn[:, nn.size(1) // 2:]
+        return z, log_var
 
-    def s_encode(self, x, noise=0):
-        s = self.s_encoder(x, noise=noise)
+    def s_encode(self, z, features=None, noise=0):
+        s = self.s_encoder(z, noise=noise)
         if self.do_roi:
             if self.training:
                 s0_mean = s[:, 0].mean()
@@ -210,6 +220,9 @@ class ModelContainer(nn.Module):
                 self.s0_ema = self.s0_ema * 0.9 + s0_mean.detach().cpu().item() * 0.1
             else:
                 s[:, 0] = self.s0_ema
+
+        if self.norm_network is not None and features is not None:
+            s = s * (torch.sigmoid(self.norm_network(features)) * 0.2 + 0.9)
 
         return s
 
@@ -224,11 +237,15 @@ class ModelContainer(nn.Module):
             {"params": self.z_encoder.parameters(), "lr": self.lr, "weight_decay": self.wd},
             {"params": self.s_encoder.parameters(), "lr": self.lr, "weight_decay": self.wd},
         ]
+        if self.norm_network is not None:
+            params.append( {"params": self.norm_network.parameters(), "lr": self.lr, "weight_decay": self.wd})
         self.adam_opt = torch.optim.AdamW(params)
 
     def clip_grad(self, clip):
         torch.nn.utils.clip_grad_norm_(self.z_encoder.parameters(), clip)
         torch.nn.utils.clip_grad_norm_(self.s_encoder.parameters(), clip)
+        if self.norm_network is not None:
+            torch.nn.utils.clip_grad_norm_(self.norm_network.parameters(), clip)
 
     def zero_grad(self, set_to_none: bool = True) -> None:
         self.adam_opt.zero_grad(set_to_none)
@@ -268,6 +285,7 @@ class ModelContainer(nn.Module):
 
             "z_encoder": self.z_encoder.state_dict(),
             "s_encoder": self.s_encoder.state_dict(),
+            "norm_network": None if self.norm_network is None else self.norm_network.state_dict(),
 
             "adam_opt": self.adam_opt.state_dict(),
             "decoder": self.decoder.state_dict(),
@@ -293,6 +311,7 @@ class ModelContainer(nn.Module):
                 voxel_size=state_dict["voxel_size"],
                 circular_mask_radius_ang=state_dict["circular_mask_radius_ang"],
                 circular_mask_thickness_ang=state_dict["circular_mask_thickness_ang"],
+                norm_network=state_dict["norm_network"] is not None,
                 z_encoder_dims=state_dict["z_encoder_dims"],
                 s_encoder_dims=state_dict["s_encoder_dims"],
                 train_epoch=state_dict["train_epoch"],
@@ -308,6 +327,9 @@ class ModelContainer(nn.Module):
             container.z_encoder.load_state_dict(state_dict["z_encoder"])
             container.s_encoder.load_state_dict(state_dict["s_encoder"])
             container.decoder.load_state_dict(state_dict["decoder"])
+
+            if container.norm_network is not None:
+                container.norm_network.load_state_dict(state_dict["norm_network"])
 
             if not skip_optimizers:
                 container.init_optimizers()
