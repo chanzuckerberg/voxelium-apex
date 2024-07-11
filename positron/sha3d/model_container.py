@@ -311,7 +311,7 @@ class ModelContainer(nn.Module):
                 voxel_size=state_dict["voxel_size"],
                 circular_mask_radius_ang=state_dict["circular_mask_radius_ang"],
                 circular_mask_thickness_ang=state_dict["circular_mask_thickness_ang"],
-                norm_network=state_dict["norm_network"] if state_dict["norm_network"] is not None else None,
+                norm_network=state_dict["norm_network"] is not None if "norm_network" in state_dict else False,
                 z_encoder_dims=state_dict["z_encoder_dims"],
                 s_encoder_dims=state_dict["s_encoder_dims"],
                 train_epoch=state_dict["train_epoch"],
