@@ -103,7 +103,7 @@ class ModelContainer(nn.Module):
         self.mse_bandpass_arg = mse_bandpass_arg
         self.mse_bandpass = None
         if mse_bandpass_arg is None:
-            self.mse_bandpass = (1, self.max_r)
+            self.mse_bandpass = (0, self.max_r)
         else:
             highpass_ang, lowpass_ang = parse_bounds_str(mse_bandpass_arg)[0]
             if lowpass_ang <= voxel_size * 2:
