@@ -30,10 +30,6 @@ class StructureDecoder(torch.nn.Module):
             p_square = p[:, i].square()
             p[i].mul_(1 / (p.size(1) * p_square.mean().sqrt() + 1e-12))
 
-        self.shift = None
-        if shift:
-            self.shift = torch.nn.Parameter(torch.full((1, s_size), 1e-2))
-
     def _load_cache(self, max_r, is_3d):
         hashable = str(max_r) + ("_3d" if is_3d else "_2d")
         if hashable not in self.caches:
@@ -74,9 +70,6 @@ class StructureDecoder(torch.nn.Module):
             projector=None
     ):
         is_3d = rot_matrices is None
-
-        if self.shift is not None:
-            s = s + self.shift
 
         if projector is None:
             projector = self.projector

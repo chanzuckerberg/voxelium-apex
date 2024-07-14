@@ -397,7 +397,7 @@ def train(rank, args, ddp_args):
                             if args.s_consistency_scheduler == "ramp":
                                 weight = min(1., epoch_partial / (max_train_epochs - 1))
                             elif args.s_consistency_scheduler == "cosine":
-                                weight = cosine_ascend(0, 1, epoch_partial / (max_train_epochs - 1))
+                                weight = cosine_ascend(0.5, 1, epoch_partial / (max_train_epochs - 1))
                             else:
                                 weight = 1.
 
