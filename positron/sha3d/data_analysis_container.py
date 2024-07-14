@@ -143,7 +143,9 @@ class DatasetAnalysisContainer:
                 z_encoder_dims=z_encoder_dims,
                 s_encoder_dims=s_encoder_dims,
                 do_roi=args.roi_mask is not None,
-                norm_network=args.norm
+                norm_network=args.norm,
+                lr=args.encoder_lr,
+                wd=args.encoder_wd
             )
 
             reconstruction_container.to(device)

@@ -72,7 +72,7 @@ class ModelContainer(nn.Module):
             s_encoder_dims=None,
             train_epoch=0,
             train_step=0,
-            lr=1e-3,
+            lr=1e-4,
             wd=1e-2,
             features_mean=None,
             features_std=None,
