@@ -17,6 +17,7 @@ def main():
     import positron.sha3d.train
     import positron.sha3d.summary
     import positron.sha3d.viewer
+    import positron.sha3d.job_submit
 
     modules = {
         "analysis_spectral": positron.analysis.spectral,
@@ -24,6 +25,7 @@ def main():
         "SHA3D": positron.sha3d.train,
         "SHA3D_summary": positron.sha3d.summary,
         "SHA3D_viewer": positron.sha3d.viewer,
+        "SHA3D_submit": positron.sha3d.job_submit,
     }
 
     subparsers = parser.add_subparsers(title='Choose a module')
