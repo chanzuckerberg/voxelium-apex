@@ -69,7 +69,7 @@ def main(args):
         default_job_name = ""
         default_slurm_temp_path = ""
 
-    def save_form(dialog):
+    def save_form(dialog=True):
         data = {
             "input_path": input_path_entry.get(),
             "sum_mask_path": sum_mask_path_entry.get(),
@@ -138,7 +138,7 @@ def main(args):
                 return
         else:
             run_command_background(cmd)
-            print(f"Running command:\n   {cmd}")
+            print(f"\nRunning command:\n   {cmd}\n")
 
     root = tk.Tk()
     root.title("Positron SHA3D submission GUI")
