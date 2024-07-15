@@ -67,12 +67,12 @@ def append_train_arguments(parser):
     parser.add_argument('--profile_runtime', action='store_true')
 
     parser.add_argument(
-        '--lr',
+        '--decoder_lr',
         help='Learning rate of the structure decoder',
         type=range_limited_float_type(0), default=0.01
     )
     parser.add_argument(
-        '--begin_lr',
+        '--decoder_begin_lr',
         help='Starting learning rate of the structure decoder',
         type=range_limited_float_type(0), default=0.1
     )
@@ -80,13 +80,13 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--encoder_lr',
         help='Learning rate of the encoders',
-        type=range_limited_float_type(0), default=1e-4
+        type=range_limited_float_type(0), default=2e-4
     )
 
     parser.add_argument(
-        '--encoder_wd',
-        help='Weight decay of the encoders',
-        type=range_limited_float_type(0), default=1e-2
+        '--encoder_begin_lr',
+        help='Beginning learning rate of the encoders',
+        type=range_limited_float_type(0), default=1e-3
     )
 
     parser.add_argument(

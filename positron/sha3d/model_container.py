@@ -72,8 +72,6 @@ class ModelContainer(nn.Module):
             s_encoder_dims=None,
             train_epoch=0,
             train_step=0,
-            lr=1e-4,
-            wd=1e-2,
             features_mean=None,
             features_std=None,
             do_roi=False,
@@ -90,9 +88,6 @@ class ModelContainer(nn.Module):
 
         self.train_epoch = train_epoch
         self.train_step = train_step
-
-        self.lr = lr
-        self.wd = wd
 
         self.do_roi = do_roi
         self.s0_ema = 0 if s0_ema is None else s0_ema
@@ -234,11 +229,11 @@ class ModelContainer(nn.Module):
         self.decoder_opt = BaseOptimizer(params)
 
         params = [
-            {"params": self.z_encoder.parameters(), "lr": self.lr, "weight_decay": self.wd},
-            {"params": self.s_encoder.parameters(), "lr": self.lr, "weight_decay": self.wd},
+            {"params": self.z_encoder.parameters()},
+            {"params": self.s_encoder.parameters()},
         ]
         if self.norm_network is not None:
-            params.append( {"params": self.norm_network.parameters(), "lr": self.lr, "weight_decay": self.wd})
+            params.append({"params": self.norm_network.parameters()})
         self.adam_opt = torch.optim.AdamW(params)
 
     def clip_grad(self, clip):
@@ -250,6 +245,14 @@ class ModelContainer(nn.Module):
     def zero_grad(self, set_to_none: bool = True) -> None:
         self.adam_opt.zero_grad(set_to_none)
         self.decoder_opt.zero_grad(set_to_none)
+
+    def set_encoder_lr(self, lr):
+        for param_group in self.adam_opt.param_groups:
+            param_group['lr'] = lr
+
+    def set_decoder_lr(self, lr):
+        for param_group in self.decoder_opt.param_groups:
+            param_group['lr'] = lr
 
     def get_device(self):
         return next(self.parameters()).device

@@ -32,10 +32,6 @@ from positron.sha3d.data_analysis_container import DatasetAnalysisContainer
 from positron.sha3d.retention_classifier import RetentionClassifier
 
 
-def get_lr(step, args):
-    return (args.begin_lr - args.lr) * cosine_descend(50, 150, step) + args.lr
-
-
 def train(rank, args, ddp_args):
     ###############################################
     # SETUP
@@ -430,17 +426,11 @@ def train(rank, args, ddp_args):
 
                         total_loss.backward()
 
-                        if log_stats:
-                            mse = torch.mean(square_error_train[:, spectral_mask])
-                            summary.add_scalar(f"Loss/MSE", mse)
-                            summary.add_scalar(f"Loss/MSE weighted", weighted_mse)
-                            summary.add_scalar(f"Loss/Total", total_loss)
-
                         reg_count = min(valid_batch_size * 2, this_batch_size - 1)
 
-                        lr = get_lr(step, args)
-
-                        rec.decoder_opt.set_lr(lr)
+                        decoder_lr = ((args.decoder_begin_lr - args.decoder_lr) *
+                                      cosine_descend(50, 150, step) + args.decoder_lr)
+                        rec.set_decoder_lr(decoder_lr)
                         rec.decoder_opt.step(fsc_spectrum=fsc_spectrum)
 
                         _, data_ctf_spectra, avg_ctf2 = hvc.get_data_stats(0)
@@ -448,10 +438,22 @@ def train(rank, args, ddp_args):
                         solvent_mask_applicator(data_ctf_spectra)
 
                         rec.clip_grad(args.grad_clip)
+                        lam = epoch_partial / (max_train_epochs - 1)
+                        encoder_lr = ((args.encoder_begin_lr - args.encoder_lr) *
+                                      cosine_descend(0.5, 1., lam) + args.encoder_lr)
+                        rec.set_encoder_lr(encoder_lr)
                         rec.adam_opt.step()
 
                         rec.zero_grad()
                         rec.eval()
+
+                        if log_stats:
+                            mse = torch.mean(square_error_train[:, spectral_mask])
+                            summary.add_scalar(f"Loss/MSE", mse)
+                            summary.add_scalar(f"Loss/MSE weighted", weighted_mse)
+                            summary.add_scalar(f"Loss/Total", total_loss)
+                            summary.add_scalar(f"Learning Rates/Encoders", encoder_lr)
+                            summary.add_scalar(f"Learning Rates/Decoder", decoder_lr)
 
                         with torch.no_grad():
                             train_mask_ = train_mask[:reg_count]

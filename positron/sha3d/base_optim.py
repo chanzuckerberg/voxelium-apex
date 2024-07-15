@@ -113,7 +113,3 @@ class BaseOptimizer(Optimizer):
         list.append({"y": update_scale, 'color': 'black'})
 
         return list
-
-    def set_lr(self, lr):
-        for group in self.param_groups:
-            group['lr'] = lr
