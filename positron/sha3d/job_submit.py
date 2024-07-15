@@ -15,7 +15,10 @@ def open_file_dialog(entry):
     entry.insert(0, filepath)
 
 
-def bake_slurm_file(template_path, job_name, cmd):
+def bake_slurm_file(template_path, job_name, cmd, output_path):
+    out = os.path.abspath(os.path.join(output_path, "run.out"))
+    err = os.path.abspath(os.path.join(output_path, "run.err"))
+
     with open(template_path, 'r') as file:
         template = file.read()
     if "{{job_name}}" not in template:
@@ -24,7 +27,9 @@ def bake_slurm_file(template_path, job_name, cmd):
         raise KeyError('Keyword "{{cmd}}" missing from SLURM template file.')
     return (template.
         replace("{{job_name}}", job_name).
-        replace("{{cmd}}", cmd)
+        replace("{{cmd}}", cmd).
+        replace("{{out}}", out).
+        replace("{{err}}", err)
     )
 
 
@@ -108,7 +113,7 @@ def main(args):
 
         if len(slurm_temp_path) > 1:
             if os.path.isfile(slurm_temp_path):
-                slurm_file = bake_slurm_file(slurm_temp_path, job_name, cmd)
+                slurm_file = bake_slurm_file(slurm_temp_path, job_name, cmd, logdir)
                 slurm_file_path = os.path.join(logdir, "slurm.bash")
                 with open(slurm_file_path, 'w') as file:
                     file.write(slurm_file)
