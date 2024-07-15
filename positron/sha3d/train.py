@@ -438,7 +438,7 @@ def train(rank, args, ddp_args):
                         solvent_mask_applicator(data_ctf_spectra)
 
                         rec.clip_grad(args.grad_clip)
-                        lam = epoch_partial / (max_train_epochs - 1)
+                        lam = epoch_partial / (max_train_epochs - 2)
                         encoder_lr = ((args.encoder_begin_lr - args.encoder_lr) *
                                       cosine_descend(0.5, 1., lam) + args.encoder_lr)
                         rec.set_encoder_lr(encoder_lr)

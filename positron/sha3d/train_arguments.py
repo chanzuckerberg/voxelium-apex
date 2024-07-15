@@ -19,7 +19,7 @@ def append_train_arguments(parser):
     parser.add_argument('--dont_finalize', action='store_true')
     parser.add_argument('--only_finalize', action='store_true')
     parser.add_argument('--pytorch_threads', type=int, default=6)
-    parser.add_argument('--dataloader_threads', '--dj', type=int, default=4)
+    parser.add_argument('--dataloader_threads', '--dj', type=int, default=2)
     parser.add_argument('--tomo', action='store_true')
 
     parser.add_argument(
@@ -67,26 +67,25 @@ def append_train_arguments(parser):
     parser.add_argument('--profile_runtime', action='store_true')
 
     parser.add_argument(
-        '--decoder_lr',
-        help='Learning rate of the structure decoder',
-        type=range_limited_float_type(0), default=0.01
-    )
-    parser.add_argument(
         '--decoder_begin_lr',
         help='Starting learning rate of the structure decoder',
         type=range_limited_float_type(0), default=0.1
     )
-
     parser.add_argument(
-        '--encoder_lr',
-        help='Learning rate of the encoders',
-        type=range_limited_float_type(0), default=2e-4
+        '--decoder_lr',
+        help='Learning rate of the structure decoder',
+        type=range_limited_float_type(0), default=0.01
     )
 
     parser.add_argument(
         '--encoder_begin_lr',
         help='Beginning learning rate of the encoders',
-        type=range_limited_float_type(0), default=1e-3
+        type=range_limited_float_type(0), default=2e-4
+    )
+    parser.add_argument(
+        '--encoder_lr',
+        help='Learning rate of the encoders',
+        type=range_limited_float_type(0), default=1e-4
     )
 
     parser.add_argument(
