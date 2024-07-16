@@ -80,7 +80,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--encoder_begin_lr',
         help='Beginning learning rate of the encoders',
-        type=range_limited_float_type(0), default=2e-4
+        type=range_limited_float_type(0), default=4e-4
     )
     parser.add_argument(
         '--encoder_lr',

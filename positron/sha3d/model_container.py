@@ -228,12 +228,13 @@ class ModelContainer(nn.Module):
         ]
         self.decoder_opt = BaseOptimizer(params)
 
+        wd = 1e-3
         params = [
-            {"params": self.z_encoder.parameters()},
-            {"params": self.s_encoder.parameters()},
+            {"params": self.z_encoder.parameters(), "weight_decay": wd},
+            {"params": self.s_encoder.parameters(), "weight_decay": wd},
         ]
         if self.norm_network is not None:
-            params.append({"params": self.norm_network.parameters()})
+            params.append({"params": self.norm_network.parameters(), "weight_decay": wd})
         self.adam_opt = torch.optim.AdamW(params)
 
     def clip_grad(self, clip):

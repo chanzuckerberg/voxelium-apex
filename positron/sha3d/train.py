@@ -32,6 +32,12 @@ from positron.sha3d.data_analysis_container import DatasetAnalysisContainer
 from positron.sha3d.retention_classifier import RetentionClassifier
 
 
+def cyclic_lr(min_lr, max_lr, x, max_x):
+    lam = x / max_x
+    cycle = (np.cos(np.pi * x / 2) + 1) / 2
+    return (max_lr - min_lr) * cycle * cosine_descend(0.5, 1., lam) + min_lr
+
+
 def train(rank, args, ddp_args):
     ###############################################
     # SETUP
@@ -438,9 +444,8 @@ def train(rank, args, ddp_args):
                         solvent_mask_applicator(data_ctf_spectra)
 
                         rec.clip_grad(args.grad_clip)
-                        lam = epoch_partial / (max_train_epochs - 2)
-                        encoder_lr = ((args.encoder_begin_lr - args.encoder_lr) *
-                                      cosine_descend(0.5, 1., lam) + args.encoder_lr)
+                        encoder_lr = cyclic_lr(
+                            args.encoder_lr, args.encoder_begin_lr, epoch_partial, max_train_epochs - 2)
                         rec.set_encoder_lr(encoder_lr)
                         rec.adam_opt.step()
 
