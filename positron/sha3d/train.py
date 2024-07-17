@@ -430,6 +430,14 @@ def train(rank, args, ddp_args):
                             if log_stats:
                                 summary.add_scalar(f"Loss/S L1", s_l1_loss)
 
+                        if args.s_l2_weight > 0:
+                            s_ = s[:, 1:] if do_roi else s
+                            s_l2_loss = s_.square().mean()
+
+                            total_loss += s_l2_loss * args.s_l2_weight
+                            if log_stats:
+                                summary.add_scalar(f"Loss/S L2", s_l2_loss)
+
                         total_loss.backward()
 
                         reg_count = min(valid_batch_size * 2, this_batch_size - 1)
