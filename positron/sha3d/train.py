@@ -491,6 +491,7 @@ def train(rank, args, ddp_args):
 
                         if log_stats:
                             summary.write_stats(x_ft, y_ft, hv["amp"], hv["amp_ctf"])
+                            summary.add_scalars(stats.get_scalar_summary())
 
                         if log_images:
                             summary.write_images(x_ft, y_ft, hv['ctfs_'])

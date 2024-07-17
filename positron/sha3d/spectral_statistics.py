@@ -147,6 +147,14 @@ class SpectralStatistics(torch.nn.Module):
         noise_power = torch.clip(power * fsc, 0, 1)
         return noise_power
 
+    def get_scalar_summary(self):
+        return {
+            "Spectral means/x_noise": self.get_x_noise().mean(),
+            "Spectral means/x_signal": self.get_x_signal().mean(),
+            "Spectral means/y_weight": self.get_y_weight().mean(),
+            "Spectral means/fsc": self.get_fsc_spectrum().mean()
+        }
+
     def get_spectral_summary(self):
         sigma2_weight = self.get_y_weight()
         sigma2_weight /= torch.max(sigma2_weight) + 1e-12
