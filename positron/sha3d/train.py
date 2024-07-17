@@ -26,7 +26,7 @@ from positron.sha3d.distributed_processing import DistributedProcessing
 from positron.sha3d.tensorboard_utils import TensorboardSummary
 from positron.sha3d.train_utils import *
 from positron.base import load_mrc
-from positron.base.spectral import fourier_shift_2d, spectral_index_from_resolution
+from positron.base.spectral import fourier_shift_2d, spectral_index_from_resolution, spectrum_to_grid_mean
 from positron.base.io_logger import IOLogger
 from positron.sha3d.data_analysis_container import DatasetAnalysisContainer
 from positron.sha3d.retention_classifier import RetentionClassifier
@@ -430,13 +430,16 @@ def train(rank, args, ddp_args):
                             if log_stats:
                                 summary.add_scalar(f"Loss/S L1", s_l1_loss)
 
-                        if args.s_l2_weight > 0:
+                        if args.s_l2_weight > 0 and epoch >= 1:
                             s_ = s[:, 1:] if do_roi else s
                             s_l2_loss = s_.square().mean()
+                            s_l2_weight = args.s_l2_weight * spectrum_to_grid_mean(stats.get_x_noise())
+                            s_l2_weight = max(1e-4, s_l2_weight) * cosine_ascend(150, 350, step)
 
-                            total_loss += s_l2_loss * args.s_l2_weight
+                            total_loss += s_l2_loss * s_l2_weight
                             if log_stats:
                                 summary.add_scalar(f"Loss/S L2", s_l2_loss)
+                                summary.add_scalar(f"Loss/S L2 weight", s_l2_weight)
 
                         total_loss.backward()
 

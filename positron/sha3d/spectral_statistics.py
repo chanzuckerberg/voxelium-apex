@@ -8,7 +8,7 @@ import torch
 from typing import List, TypeVar, Dict, Union
 
 import numpy as np
-from positron.base import grid_spectral_average
+from positron.base import grid_spectral_average, spectrum_to_grid_mean
 
 from positron.sha3d.cache import Cache
 
@@ -34,15 +34,15 @@ class SpectralStatistics(torch.nn.Module):
 
         self.c_train_spectrum = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
         self.c_valid_spectrum = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
-        self.c_train_ctf_spectrum = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
-        self.c_valid_ctf_spectrum = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
+        self.x_ctf_train_power_spectrum = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
 
+        # These stats are not used in regularization
         self.mse = torch.nn.Parameter(torch.ones(self.maxr), requires_grad=False)
-
+        self.c_train_ctf = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
+        self.c_valid_ctf = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
         self.x_train_power = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
         self.x_valid_power = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
         self.y_power = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
-        self.x_ctf_train_power = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
         self.x_ctf_valid_power = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
         self.y_ctf_power = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
 
@@ -95,7 +95,7 @@ class SpectralStatistics(torch.nn.Module):
         self.spectral_ema_(self.x_train_power.data, x_train_power_spec, momentum)
         self.spectral_ema_(self.x_valid_power.data, x_valid_power_spec, momentum)
 
-        self.spectral_ema_(self.x_ctf_train_power.data, x_train_power_spec / (ctf2 + 1e-12), momentum)
+        self.spectral_ema_(self.x_ctf_train_power_spectrum.data, x_train_power_spec / (ctf2 + 1e-12), momentum)
         self.spectral_ema_(self.x_ctf_valid_power.data, x_valid_power_spec / (ctf2 + 1e-12), momentum)
 
         self.spectral_ema_(self.y_power.data, y_power_spec, momentum)
@@ -109,8 +109,8 @@ class SpectralStatistics(torch.nn.Module):
 
         self.spectral_ema_(self.c_train_spectrum.data, c_train_spec / (ctf2 + 1e-12), momentum)
         self.spectral_ema_(self.c_valid_spectrum.data, c_valid_spec / (ctf2 + 1e-12), momentum)
-        self.spectral_ema_(self.c_train_ctf_spectrum.data, c_train_spec, momentum)
-        self.spectral_ema_(self.c_valid_ctf_spectrum.data, c_valid_spec, momentum)
+        self.spectral_ema_(self.c_train_ctf.data, c_train_spec, momentum)
+        self.spectral_ema_(self.c_valid_ctf.data, c_valid_spec, momentum)
 
     def get_fsc_spectrum(self, eps=1e-6):
         # Smoothen rigorously to avoid a noisy FSC estimate as the two spectra are almost the same value
@@ -137,22 +137,22 @@ class SpectralStatistics(torch.nn.Module):
 
     def get_x_noise(self):
         fsc = self.get_fsc_spectrum()
-        power = smoothen_spectra(self.x_ctf_train_power.data, kernel=5)
+        power = smoothen_spectra(self.x_ctf_train_power_spectrum.data, kernel=5)
         noise_power = torch.clip(power * (1 - fsc), 0, 1)
         return noise_power
 
     def get_x_signal(self):
         fsc = self.get_fsc_spectrum()
-        power = smoothen_spectra(self.x_ctf_train_power.data, kernel=5)
+        power = smoothen_spectra(self.x_ctf_train_power_spectrum.data, kernel=5)
         noise_power = torch.clip(power * fsc, 0, 1)
         return noise_power
 
     def get_scalar_summary(self):
         return {
-            "Spectral means/x_noise": self.get_x_noise().mean(),
-            "Spectral means/x_signal": self.get_x_signal().mean(),
-            "Spectral means/y_weight": self.get_y_weight().mean(),
-            "Spectral means/fsc": self.get_fsc_spectrum().mean()
+            "Spectral means/x_noise": spectrum_to_grid_mean(self.get_x_noise()),
+            "Spectral means/x_signal": spectrum_to_grid_mean(self.get_x_signal()),
+            "Spectral means/y_weight": spectrum_to_grid_mean(self.get_y_weight()),
+            "Spectral means/fsc": spectrum_to_grid_mean(self.get_fsc_spectrum())
         }
 
     def get_spectral_summary(self):
@@ -173,7 +173,7 @@ class SpectralStatistics(torch.nn.Module):
                  'label': 'MSE', 'color': 'green', 'linestyle': 'dashed'},
             ],
             'Powers': [
-                {'y': self.x_ctf_train_power.data, 'label': 'x ctf train', 'color': 'blue'},
+                {'y': self.x_ctf_train_power_spectrum.data, 'label': 'x ctf train', 'color': 'blue'},
                 {'y': self.x_ctf_valid_power.data, 'label': 'x ctf valid', 'color': 'green'},
                 {'y': self.y_ctf_power.data, 'label': 'y ctf', 'color': 'grey'},
                 {'y': self.x_train_power.data, 'label': 'x train', 'color': 'blue', 'linestyle': 'dashed'},

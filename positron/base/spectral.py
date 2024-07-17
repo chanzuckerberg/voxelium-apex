@@ -632,3 +632,10 @@ def rescale_from_voxel_size(shape: Union[list, tuple], voxel_size: float, target
             out_sz -= 1
 
     return voxel_size * in_sz / out_sz
+
+
+def spectrum_to_grid_mean(spectrum, dim=2):
+    assert spectrum.dim() == 1
+    count = torch.arange(1, spectrum.size(0) + 1, device=spectrum.device, dtype=spectrum.dtype).pow(dim)
+    return (spectrum * count).sum() / count.sum()
+
