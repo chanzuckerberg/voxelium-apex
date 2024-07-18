@@ -430,16 +430,13 @@ def train(rank, args, ddp_args):
                             if log_stats:
                                 summary.add_scalar(f"Loss/S L1", s_l1_loss)
 
-                        if args.s_l2_weight > 0 and epoch >= 1:
+                        if args.s_l2_weight > 0:
                             s_ = s[:, 1:] if do_roi else s
                             s_l2_loss = s_.square().mean()
-                            s_l2_weight = args.s_l2_weight * spectrum_to_grid_mean(stats.get_x_noise())
-                            s_l2_weight = max(1e-4, s_l2_weight) * cosine_ascend(150, 350, step)
 
-                            total_loss += s_l2_loss * s_l2_weight
+                            total_loss += s_l2_loss * args.s_l2_weight
                             if log_stats:
                                 summary.add_scalar(f"Loss/S L2", s_l2_loss)
-                                summary.add_scalar(f"Loss/S L2 weight", s_l2_weight)
 
                         total_loss.backward()
 
