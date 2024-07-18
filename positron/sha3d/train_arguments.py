@@ -127,7 +127,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--s_l2_weight',
         help='S L1 loss weight',
-        type=range_limited_float_type(0), default=1
+        type=range_limited_float_type(0), default=1e-3
     )
 
     parser.add_argument(
