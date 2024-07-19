@@ -281,10 +281,14 @@ def train(rank, args, ddp_args):
                 else:
                     wy = y_weight * x_signal_pow
 
+                if step > 200:
+                    fsc_mask = stats.get_fsc_spectrum() < 0.5
+                    wy[fsc_mask] = 0
+
                 s0_ = rec.s0_ema if do_roi else None
 
                 features = feature_extractor(
-                    hv=hv, y=y_ft, wy=wy, wx=1-stats.get_fsc_spectrum(), groups=tomo_groups, s0=s0_)
+                    hv=hv, y=y_ft, wy=wy, wx=torch.ones_like(wy), groups=tomo_groups, s0=s0_)
 
                 if log_stats:
                     summary.add_scalar("Features/mean", features.mean())
@@ -346,6 +350,9 @@ def train(rank, args, ddp_args):
 
                     y_weight = stats.get_y_weight(eps=1e-3)
                     weight = y_weight / (y_weight.mean() + 1e-3)
+                    if step > 200:
+                        fsc_mask = stats.get_fsc_spectrum() < 0.3
+                        weight[fsc_mask] = 1e-3
                     weight *= rec.get_mse_weight_spectrum().to(device)
                     weight_grid = Cache.spectra_to_grids(weight, hv['ctfs_'].shape[1:], image_max_r)
                     x_ = torch.view_as_complex(x)
