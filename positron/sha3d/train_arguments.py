@@ -80,7 +80,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--encoder_begin_lr',
         help='Beginning learning rate of the encoders',
-        type=range_limited_float_type(0), default=4e-4
+        type=range_limited_float_type(0), default=1e-4
     )
     parser.add_argument(
         '--encoder_lr',
@@ -103,7 +103,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--s_consistency_weight',
         help='Consistency of the embedding',
-        type=range_limited_float_type(0), default=.1
+        type=range_limited_float_type(0), default=1.
     )
 
     parser.add_argument(
@@ -115,7 +115,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--smoothness_distance',
         help='Pair distance for smoothness loss',
-        type=range_limited_float_type(0, 1), default=.1
+        type=range_limited_float_type(0, 1), default=.3
     )
 
     parser.add_argument(
@@ -127,7 +127,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--s_l2_weight',
         help='S L1 loss weight',
-        type=range_limited_float_type(0), default=1e-3
+        type=range_limited_float_type(0), default=1e-4
     )
 
     parser.add_argument(

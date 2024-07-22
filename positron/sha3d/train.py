@@ -424,14 +424,14 @@ def train(rank, args, ddp_args):
                                 s0=s0_, bandpass=False
                             )
                             s_ = s[:, 1:] if do_roi else s
-                            proto_loss = (features - s_).square().mean()
+                            proto_loss = (features - s_).square().sum(1).mean()
                             total_loss += proto_loss
                             if log_stats:
                                 summary.add_scalar(f"Loss/Proto", proto_loss)
 
                         if args.s_l1_weight > 0:
                             s_ = s[:, 1:] if do_roi else s
-                            s_l1_loss = s_.abs().mean()
+                            s_l1_loss = s_.abs().sum(1).mean()
 
                             total_loss += s_l1_loss * args.s_l1_weight
                             if log_stats:
@@ -439,7 +439,7 @@ def train(rank, args, ddp_args):
 
                         if args.s_l2_weight > 0:
                             s_ = s[:, 1:] if do_roi else s
-                            s_l2_loss = s_.square().mean()
+                            s_l2_loss = s_.square().sum(1).mean()
 
                             total_loss += s_l2_loss * args.s_l2_weight
                             if log_stats:
