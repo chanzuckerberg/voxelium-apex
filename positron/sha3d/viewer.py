@@ -213,6 +213,8 @@ class Viewer:
         self.hm_sharp = np.zeros([self.hm_bins, self.hm_bins])
         np.add.at(self.hm_sharp, (c[:, 1], c[:, 0]), 1)
 
+        # self.hm_sharp = self.hm_sharp ** 0.1
+
         self.update_hm()
 
         #  --------------------------------------------------------------------------------
@@ -380,7 +382,6 @@ class Viewer:
         #
         # self.ax_hm.set_xlim([self.z_min[0], self.z_max[0]])
         # self.ax_hm.set_ylim([self.z_min[1], self.z_max[1]])
-
 
         self.hm_sigma_text.set_text(f"Smooth\n{round(self.hm_sigma)}")
         self.fig_hm.canvas.blit(self.hm_text_axes.bbox)

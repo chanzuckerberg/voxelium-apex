@@ -22,6 +22,9 @@ def append_train_arguments(parser):
     parser.add_argument('--dataloader_threads', '--dj', type=int, default=2)
     parser.add_argument('--tomo', action='store_true')
 
+    parser.add_argument('--nbn_z', action='store_true')
+    parser.add_argument('--nbn_s', action='store_true')
+
     parser.add_argument(
         '--z_size', '-z',
         help='Number of learnt representation dimensions.',
@@ -85,7 +88,7 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--encoder_lr',
         help='Learning rate of the encoders',
-        type=range_limited_float_type(0), default=1e-4
+        type=range_limited_float_type(0), default=5e-5
     )
 
     parser.add_argument(
@@ -128,12 +131,6 @@ def append_train_arguments(parser):
         '--s_l2_weight',
         help='S L1 loss weight',
         type=range_limited_float_type(0), default=1e-4
-    )
-
-    parser.add_argument(
-        '--proto_loss_weight',
-        help='Prototype loss weight',
-        type=range_limited_float_type(0), default=0.
     )
 
     parser.add_argument(

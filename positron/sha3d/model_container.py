@@ -75,7 +75,9 @@ class ModelContainer(nn.Module):
             features_mean=None,
             features_std=None,
             do_roi=False,
-            s0_ema=None
+            s0_ema=None,
+            nbn_z=False,
+            nbn_s=False
     ) -> None:
         super().__init__()
 
@@ -85,6 +87,9 @@ class ModelContainer(nn.Module):
         self.voxel_size = voxel_size
         self.circular_mask_radius_ang = circular_mask_radius_ang
         self.circular_mask_thickness_ang = circular_mask_thickness_ang
+
+        self.nbn_z = z_size
+        self.nbn_s = z_size
 
         self.train_epoch = train_epoch
         self.train_step = train_step
@@ -141,6 +146,7 @@ class ModelContainer(nn.Module):
             output_dim=z_size * 2,
             resid_dim=128,
             resid_count=4,
+            normalize_fn=torch.nn.BatchNorm1d if not nbn_z else None
         )
 
         self.s_encoder = Encoder(
@@ -148,6 +154,7 @@ class ModelContainer(nn.Module):
             output_dim=s_size,
             resid_dim=128,
             resid_count=4,
+            normalize_fn=torch.nn.BatchNorm1d if not nbn_s else None
         )
 
         self.norm_network = None
@@ -296,7 +303,10 @@ class ModelContainer(nn.Module):
             "decoder_opt": self.decoder_opt.state_dict(),
 
             "do_roi": self.do_roi,
-            "s0_ema": self.s0_ema
+            "s0_ema": self.s0_ema,
+
+            "nbn_z": self.nbn_z,
+            "nbn_s": self.nbn_s
         }
 
     @staticmethod
@@ -325,7 +335,9 @@ class ModelContainer(nn.Module):
                 features_mean=state_dict["features_mean"],
                 features_std=state_dict["features_std"],
                 do_roi=state_dict["do_roi"],
-                s0_ema=state_dict["s0_ema"]
+                s0_ema=state_dict["s0_ema"],
+                nbn_z=state_dict["nbn_z"],
+                nbn_s=state_dict["nbn_s"]
             )
 
             container.z_encoder.load_state_dict(state_dict["z_encoder"])

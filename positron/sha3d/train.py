@@ -417,18 +417,6 @@ def train(rank, args, ddp_args):
                             total_loss += s_consistency_loss_train * weight * args.s_consistency_weight
                             total_loss += z_compactness_loss_train * args.z_compactness_weight
 
-                        if args.proto_loss_weight > 0:
-                            features = feature_extractor(
-                                hv=hv, y=y_ft, wy=y_weight,
-                                wx=torch.zeros_like(y_weight), groups=tomo_groups,
-                                s0=s0_, bandpass=False
-                            )
-                            s_ = s[:, 1:] if do_roi else s
-                            proto_loss = (features - s_).square().sum(1).mean()
-                            total_loss += proto_loss
-                            if log_stats:
-                                summary.add_scalar(f"Loss/Proto", proto_loss)
-
                         if args.s_l1_weight > 0:
                             s_ = s[:, 1:] if do_roi else s
                             s_l1_loss = s_.abs().sum(1).mean()
