@@ -88,8 +88,8 @@ class ModelContainer(nn.Module):
         self.circular_mask_radius_ang = circular_mask_radius_ang
         self.circular_mask_thickness_ang = circular_mask_thickness_ang
 
-        self.nbn_z = z_size
-        self.nbn_s = z_size
+        self.nbn_z = nbn_z
+        self.nbn_s = nbn_s
 
         self.train_epoch = train_epoch
         self.train_step = train_step
