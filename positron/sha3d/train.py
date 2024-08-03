@@ -400,8 +400,8 @@ def train(rank, args, ddp_args):
                             s_ = s[:, 1:] if do_roi else s
                             s_noise_ = s_noise[:, 1:] if do_roi else s_noise
 
-                            s_consistency_loss_train = (s_ - s_noise_)[train_mask].square().mean()
-                            z_compactness_loss_train = z_noise.square().mean()
+                            s_consistency_loss_train = (s_ - s_noise_)[train_mask].square().sum(1).mean()
+                            z_compactness_loss_train = z_noise.square().sum(1).mean()
 
                             if args.s_consistency_scheduler == "ramp":
                                 weight = min(1., epoch_partial / (max_train_epochs - 1))
