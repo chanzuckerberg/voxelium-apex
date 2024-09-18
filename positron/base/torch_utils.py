@@ -68,7 +68,10 @@ def make_imshow_fig(data):
                         hspace=0, wspace=0)
     plt.margins(0, 0)
 
-    matplotlib.use(backend)
+    try:
+        matplotlib.use(backend)
+    except ImportError:
+        pass
 
     return fig
 
@@ -105,7 +108,11 @@ def make_scatter_fig(x, y, c=None):
     plt.margins(0, 0)
     # plt.show()
 
-    matplotlib.use(backend)
+    try:
+        matplotlib.use(backend)
+    except ImportError:
+        pass
+
     return fig
 
 
@@ -158,7 +165,11 @@ def make_heatmap_fig(x, y, bins=400, sigma=4, cm=None):
     plt.margins(0, 0)
     # plt.show()
 
-    matplotlib.use(backend)
+    try:
+        matplotlib.use(backend)
+    except ImportError:
+        pass
+
     return fig
 
 
@@ -182,7 +193,11 @@ def make_line_fig(x, y, y_log=False):
     plt.margins(0, 0)
     # plt.show()
 
-    matplotlib.use(backend)
+    try:
+        matplotlib.use(backend)
+    except ImportError:
+        pass
+
     return fig
 
 
@@ -222,7 +237,11 @@ def make_series_line_fig(data, y_log=False):
     plt.margins(0, 0)
     # plt.show()
 
-    matplotlib.use(backend)
+    try:
+        matplotlib.use(backend)
+    except ImportError:
+        pass
+
     return fig
 
 

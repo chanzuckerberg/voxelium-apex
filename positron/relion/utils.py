@@ -22,5 +22,7 @@ def find_project_root(from_path: str, file_relative_path: str) -> str:
         if os.path.isfile(trial_path):
             return current_path
         if current_path == os.path.dirname(current_path):  # At filesystem root
-            raise RuntimeError(f"Relion project directory could not be found from the subdirectory: {from_path}")
+            raise RuntimeError(
+                f"Relion project directory could not be found from the subdirectory: {from_path} \n"
+                f"Using relative path {file_relative_path}")
         current_path = os.path.dirname(current_path)
