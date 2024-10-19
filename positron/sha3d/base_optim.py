@@ -43,6 +43,8 @@ class BaseOptimizer(Optimizer):
         defaults = dict(lr=lr, betas=betas, weight_decay=weight_decay)
         super().__init__(params, defaults)
 
+        self.init_devices = True
+
     @torch.no_grad()
     def step(self, fsc_spectrum=None):
         """Performs a single optimization step.
@@ -58,12 +60,14 @@ class BaseOptimizer(Optimizer):
                 nr_base = p.shape[1]
                 grad = p.grad
                 state = self.state[p]
-                # State initialization
-                if len(state) == 0:
-                    # Exponential moving average of gradient values
-                    state['exp_avg'] = torch.zeros_like(p)
-                    group['spectral_idx'] = group['spectral_idx'].to(p.device)
-                    state['spectral_power'] = torch.ones([nr_base, group['max_r']], device=p.device)
+                # Device initialization of exponential moving average of gradient values
+                if self.init_devices:
+                    d = p.device
+                    state['exp_avg'] = state['exp_avg'].to(d) if 'exp_avg' in state else torch.zeros_like(p)
+                    state['spectral_power'] = state['spectral_power'].to(d) if 'spectral_power' in state else (
+                        torch.ones([nr_base, group['max_r']], device=d))
+                    group['spectral_idx'] = group['spectral_idx'].to(d) if 'spectral_idx' in group else (
+                        group['spectral_idx'].to(d))
 
                 sidx = group['spectral_idx']
                 exp_avg = state['exp_avg']

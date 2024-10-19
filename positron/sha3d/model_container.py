@@ -180,8 +180,10 @@ class ModelContainer(nn.Module):
         self.lion_opt = None
         self.adam_opt = None
 
-        self.features_mean = features_mean
-        self.features_std = features_std
+        self.features_mean = torch.nn.Parameter(features_mean)
+        self.features_mean.requires_grad_(False)
+        self.features_std = torch.nn.Parameter(features_std)
+        self.features_std.requires_grad_(False)
 
     def get_circular_mask_params(self):
         circular_mask_radius = self.circular_mask_radius_ang / self.voxel_size
@@ -196,16 +198,12 @@ class ModelContainer(nn.Module):
 
     def normalize_features(self, features, eps=1e-6):
         if self.training:
-            if self.features_mean is None:
-                self.features_mean = features.mean(0, keepdim=True)
-                self.features_std = features.std(0, keepdim=True)
-            else:
-                b = 0.1
-                self.features_mean = self.features_mean * b + features.mean(0, keepdim=True) * (1 - b)
-                self.features_std = self.features_std * b + features.std(0, keepdim=True) * (1 - b)
+            b = 0.1
+            self.features_mean.data = self.features_mean.data * b + features.mean(0, keepdim=True) * (1 - b)
+            self.features_std.data = self.features_std.data * b + features.std(0, keepdim=True) * (1 - b)
             return (features - features.mean(0, keepdim=True)) / (features.std(0, keepdim=True) + eps)
         else:
-            return (features - self.features_mean) / (self.features_std + eps)
+            return (features - self.features_mean.data) / (self.features_std.data + eps)
 
     def z_encode(self, features, noise=0):
         nn = self.z_encoder(features, noise=noise)
@@ -308,6 +306,16 @@ class ModelContainer(nn.Module):
             "nbn_z": self.nbn_z,
             "nbn_s": self.nbn_s
         }
+
+    def to(self, device):
+        new = super().to(device)
+        for param in new.adam_opt.state.values():
+            if isinstance(param, dict):
+                for key, value in param.items():
+                    if isinstance(value, torch.Tensor):
+                        param[key] = value.to(device)
+
+        return new
 
     @staticmethod
     def load_from_state_dict(state_dict, skip_optimizers=False):

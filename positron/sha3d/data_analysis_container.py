@@ -50,15 +50,16 @@ class DatasetAnalysisContainer:
             device = DistributedProcessing.get_device()
 
         # Check if there is an existing checkpoint file
-        found_checkpoint = os.path.isfile(os.path.join(args.log_dir, f"chkpt.pt"))
+        found_checkpoint = os.path.isfile(os.path.join(args.log_dir, f"mnx.pt"))
 
         # Load dataset
         if found_checkpoint:
             data_analysis_container = DatasetAnalysisContainer.load_from_logdir(args.log_dir, device=device)
+            data_analysis_container.reconstruction_container.to(device)
             print(
-                f"Found existing checkpoint file at training step "
-                f"{data_analysis_container.train_step} and epoch "
-                f"{data_analysis_container.train_epoch}"
+                f"Found existing checkpoint files at training step "
+                f"{data_analysis_container.reconstruction_container.train_step} and epoch "
+                f"{data_analysis_container.reconstruction_container.train_epoch}"
             )
             dataset = data_analysis_container.particle_dataset
         else:
