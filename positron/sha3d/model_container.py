@@ -9,6 +9,7 @@ import torch.nn as nn
 from typing import List, TypeVar, Dict, Union
 
 from positron.base import get_activation_function_by_name, ResidBlock
+from .spectral_statistics import SpectralStatistics
 from .train_utils import parse_bounds_str
 
 from ..base import ModelContainer, spectral_index_from_resolution
@@ -180,10 +181,13 @@ class ModelContainer(nn.Module):
         self.lion_opt = None
         self.adam_opt = None
 
-        self.features_mean = torch.nn.Parameter(features_mean)
-        self.features_mean.requires_grad_(False)
-        self.features_std = torch.nn.Parameter(features_std)
-        self.features_std.requires_grad_(False)
+        features_mean = torch.zeros([1, feature_size]) if features_mean is None else features_mean
+        self.features_mean = torch.nn.Parameter(features_mean, requires_grad=False)
+
+        features_std = torch.zeros([1, feature_size]) if features_std is None else features_std
+        self.features_std = torch.nn.Parameter(features_std, requires_grad=False)
+
+        self.stats = SpectralStatistics(image_size)
 
     def get_circular_mask_params(self):
         circular_mask_radius = self.circular_mask_radius_ang / self.voxel_size
@@ -304,16 +308,19 @@ class ModelContainer(nn.Module):
             "s0_ema": self.s0_ema,
 
             "nbn_z": self.nbn_z,
-            "nbn_s": self.nbn_s
+            "nbn_s": self.nbn_s,
+
+            "spectral_stats": self.stats.get_state_dict()
         }
 
     def to(self, device):
         new = super().to(device)
-        for param in new.adam_opt.state.values():
-            if isinstance(param, dict):
-                for key, value in param.items():
-                    if isinstance(value, torch.Tensor):
-                        param[key] = value.to(device)
+        if hasattr(new.adam_opt, 'state'):
+            for param in new.adam_opt.state.values():
+                if isinstance(param, dict):
+                    for key, value in param.items():
+                        if isinstance(value, torch.Tensor):
+                            param[key] = value.to(device)
 
         return new
 
@@ -351,6 +358,8 @@ class ModelContainer(nn.Module):
             container.z_encoder.load_state_dict(state_dict["z_encoder"])
             container.s_encoder.load_state_dict(state_dict["s_encoder"])
             container.decoder.load_state_dict(state_dict["decoder"])
+
+            container.stats = SpectralStatistics.load_from_state_dict(state_dict["spectral_stats"])
 
             if container.norm_network is not None:
                 container.norm_network.load_state_dict(state_dict["norm_network"])

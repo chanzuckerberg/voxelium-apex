@@ -175,12 +175,6 @@ def train(rank, args, ddp_args):
 
     last_save_time = time.time()
 
-    stats = SpectralStatistics(
-        image_size=image_size,
-        filter_cutoff_idx=spectral_index_from_resolution(args.filter_resolution, image_size, pixel_size),
-        lam=args.lam
-    ).to(device)
-
     max_train_epochs = args.max_train_epochs
     if args.only_finalize:
         max_epochs = rec.train_epoch + 1
@@ -203,6 +197,7 @@ def train(rank, args, ddp_args):
 
     subtract_during_finalize = subtract_mask is not None
 
+    # TODO remove this
     subtraction_helper = SubtractionHelper(
         log_dir=os.path.join(log_dir, "subtract"),
         rec=rec,
@@ -218,8 +213,6 @@ def train(rank, args, ddp_args):
     print(f"MSE weight bandpass indices (max index is {rec.max_r}): {rec.mse_bandpass[0]}-{rec.mse_bandpass[1]}")
 
     do_tomo = args.tomo
-
-    s_retention = RetentionClassifier(rec.s_size).to(device)
 
     try:
         for epoch in np.arange(rec.train_epoch, max_epochs):
@@ -273,8 +266,8 @@ def train(rank, args, ddp_args):
                 tt = time.time()
 
                 # TODO Clean-up
-                y_weight = stats.get_y_weight()
-                x_signal_pow = stats.get_x_signal()
+                y_weight = rec.stats.get_y_weight()
+                x_signal_pow = rec.stats.get_x_signal()
 
                 if args.feature_noise_weight:
                     wy = y_weight
@@ -282,7 +275,7 @@ def train(rank, args, ddp_args):
                     wy = y_weight * x_signal_pow
 
                 if step > 200:
-                    fsc_mask = stats.get_fsc_spectrum() < 0.5
+                    fsc_mask = rec.stats.get_fsc_spectrum() < 0.5
                     wy[fsc_mask] = 0
 
                 s0_ = rec.s0_ema if do_roi else None
@@ -315,10 +308,6 @@ def train(rank, args, ddp_args):
                     subtraction_helper(s, sample, hv)
 
                 if not finalize:
-                    #s_retention(logit=s, labels=train_mask, make_summary=log_stats)
-                    # if log_stats:
-                    #     summary.add_scalars(s_retention.get_summary())
-
                     if log_stats:
                         summary.add_scalar(f"Z/std", z.std())
                         summary.add_scalar(f"Z/mean", z.mean())
@@ -348,10 +337,10 @@ def train(rank, args, ddp_args):
                         device=device
                     )
 
-                    y_weight = stats.get_y_weight(eps=1e-3)
+                    y_weight = rec.stats.get_y_weight(eps=1e-3)
                     weight = y_weight / (y_weight.mean() + 1e-3)
                     if step > 200:
-                        fsc_mask = stats.get_fsc_spectrum() < 0.3
+                        fsc_mask = rec.stats.get_fsc_spectrum() < 0.3
                         weight[fsc_mask] = 1e-3
                     weight *= rec.get_mse_weight_spectrum().to(device)
                     weight_grid = Cache.spectra_to_grids(weight, hv['ctfs_'].shape[1:], image_max_r)
@@ -367,7 +356,7 @@ def train(rank, args, ddp_args):
                     if step > 0:
                         total_loss = weighted_mse
 
-                        fsc_spectrum = stats.get_fsc_spectrum().clip(0.01, 0.99)
+                        fsc_spectrum = rec.stats.get_fsc_spectrum().clip(0.01, 0.99)
 
                         if args.regularization > 0:
                             regularization_weight = Cache.spectra_to_grids(
@@ -479,7 +468,7 @@ def train(rank, args, ddp_args):
                             x_ft_shift = fourier_shift_2d(x_ft, shifts)
                             x_ = x_ft_shift * ctf_
 
-                        stats.update(
+                        rec.stats.update(
                             x=x_, y=y_, ctf2=avg_ctf2,
                             train_mask=train_mask_,
                             valid_mask=~train_mask_,
@@ -489,12 +478,12 @@ def train(rank, args, ddp_args):
 
                         if log_stats:
                             summary.write_stats(x_ft, y_ft, hv["amp"], hv["amp_ctf"])
-                            summary.add_scalars(stats.get_scalar_summary())
+                            summary.add_scalars(rec.stats.get_scalar_summary())
 
                         if log_images:
                             summary.write_images(x_ft, y_ft, hv['ctfs_'])
 
-                            reg = stats.get_spectral_summary()
+                            reg = rec.stats.get_spectral_summary()
                             for key in reg:
                                 summary.add_figure(key, make_series_line_fig(reg[key]))
 

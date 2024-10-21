@@ -119,8 +119,6 @@ class FeatureExtractor:
 
         self.beta = beta
         self.eps = eps
-        self.features_mean = None
-        self.features_std = None
 
         self.s0 = 1
 

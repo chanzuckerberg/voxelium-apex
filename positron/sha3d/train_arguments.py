@@ -186,28 +186,10 @@ def append_train_arguments(parser):
         help="Cache directory"
     )
     parser.add_argument(
-        "--filter_resolution",
-        type=float,
-        default=20,
-        help="Filter resolution cut-off, in Ångströms"
-    )
-    parser.add_argument(
         "--max_data_resolution",
         type=float,
         default=None,
         help="Minimum data resolution, in Ångströms"
-    )
-    parser.add_argument(
-        "--lam",
-        type=float,
-        default=1.,
-        help="Regularization parameter"
-    )
-    parser.add_argument(
-        "--lam_base",
-        type=float,
-        default=1.,
-        help="Regularization parameter"
     )
     parser.add_argument(
         "--dampen",

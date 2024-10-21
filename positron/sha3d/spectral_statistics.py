@@ -21,15 +21,11 @@ Tensor = TypeVar('torch.tensor')
 class SpectralStatistics(torch.nn.Module):
     def __init__(
             self,
-            image_size,
-            filter_cutoff_idx,
-            lam
+            image_size
     ) -> None:
         super().__init__()
 
         self.image_size = image_size
-        self.filter_cutoff_idx = filter_cutoff_idx
-        self.lam = lam
         self.maxr = size_to_maxr(image_size)
 
         self.c_train_spectrum = torch.nn.Parameter(torch.zeros(self.maxr), requires_grad=False)
@@ -186,3 +182,50 @@ class SpectralStatistics(torch.nn.Module):
             ],
         }
 
+    def get_state_dict(self) -> Dict:
+        return {
+            "type": "SpectralStatistics",
+            "version": "0.0.1",
+
+            "image_size": self.image_size,
+            "c_train_spectrum": self.c_train_spectrum.data,
+            "c_valid_spectrum": self.c_valid_spectrum.data,
+            "x_ctf_train_power_spectrum": self.x_ctf_train_power_spectrum.data,
+            "mse": self.mse.data,
+            "c_train_ctf": self.c_train_ctf.data,
+            "c_valid_ctf": self.c_valid_ctf.data,
+            "x_train_power": self.x_train_power.data,
+            "x_valid_power": self.x_valid_power.data,
+            "y_power": self.y_power.data,
+            "x_ctf_valid_power": self.x_ctf_valid_power.data,
+            "y_ctf_power": self.y_ctf_power.data,
+        }
+
+    @staticmethod
+    def load_from_state_dict(state_dict):
+        if "type" not in state_dict or state_dict["type"] != "SpectralStatistics":
+            raise TypeError("Input is not an 'SpectralStatistics' instance.")
+
+        if "version" not in state_dict:
+            raise RuntimeError("SpectralStatistics instance lacks version information.")
+
+        if state_dict["version"] == "0.0.1":
+            container = SpectralStatistics(
+                image_size=state_dict["image_size"]
+            )
+
+            container.c_train_spectrum.data = state_dict["c_train_spectrum"]
+            container.c_valid_spectrum.data = state_dict["c_valid_spectrum"]
+            container.x_ctf_train_power_spectrum.data = state_dict["x_ctf_train_power_spectrum"]
+            container.mse.data = state_dict["mse"]
+            container.c_train_ctf.data = state_dict["c_train_ctf"]
+            container.c_valid_ctf.data = state_dict["c_valid_ctf"]
+            container.x_train_power.data = state_dict["x_train_power"]
+            container.x_valid_power.data = state_dict["x_valid_power"]
+            container.y_power.data = state_dict["y_power"]
+            container.x_ctf_valid_power.data = state_dict["x_ctf_valid_power"]
+            container.y_ctf_power.data = state_dict["y_ctf_power"]
+
+            return container
+        else:
+            raise RuntimeError(f"Version '{state_dict['version']}' not supported.")
