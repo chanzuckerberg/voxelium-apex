@@ -107,7 +107,7 @@ def main(args):
 
         os.makedirs(logdir)
 
-        cmd = f"positron SHA3D {input_path} {logdir} {flags}"
+        cmd = f"positron SHA3D {logdir} -i {input_path} {flags}"
         if len(sum_mask_path) > 1:
             cmd += f" && positron SHA3D_summary {logdir} -m {sum_mask_path}"
 

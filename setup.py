@@ -18,6 +18,7 @@ def print_debug_msg():
     print("------------- DEBUG MODE ------------- ")
     print("-------------------------------------- ")
 
+nvcc_architectures = ["61", "70", "75", "80", "86", "87", "89", "90"]
 
 debug = False
 _DEBUG_LEVEL = os.environ.get('POSITRON_DEBUG', '0')
@@ -36,6 +37,10 @@ include_dirs = [project_root]
 
 cxx_extra_compile_args = []
 nvcc_extra_compile_args = []
+
+for arch in nvcc_architectures:
+    nvcc_extra_compile_args += [f"-gencode=arch=compute_{arch},code=sm_{arch}"]
+
 if debug:
     print_debug_msg()
     cxx_extra_compile_args += ["-g", "-O0", "-DDEBUG=%s" % _DEBUG_LEVEL, "-UNDEBUG"]
@@ -43,6 +48,7 @@ if debug:
 else:
     cxx_extra_compile_args += ["-DNDEBUG", "-O3"]
 nvcc_extra_compile_args += cxx_extra_compile_args
+
 
 if build_extensions:
     ext_modules = [

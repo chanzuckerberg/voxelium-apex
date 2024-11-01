@@ -105,6 +105,8 @@ class Viewer:
         self.ax_hm.axis('off')
         plt.tight_layout()
 
+        print(f"Found {embed.size(0)} points.")
+
         x = embed[:, 0].cpu().numpy().astype(np.float32)
         y = embed[:, 1].cpu().numpy().astype(np.float32)
 

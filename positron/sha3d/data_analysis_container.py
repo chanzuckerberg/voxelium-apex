@@ -52,18 +52,25 @@ class DatasetAnalysisContainer:
         # Check if there is an existing checkpoint file
         found_checkpoint = os.path.isfile(os.path.join(args.log_dir, f"mnx.pt"))
 
+        parse_dataset = True
+        checkpoint_dac = None
+
         # Load dataset
         if found_checkpoint:
-            data_analysis_container = DatasetAnalysisContainer.load_from_logdir(args.log_dir, device=device)
-            data_analysis_container.reconstruction_container.to(device)
+            checkpoint_dac = DatasetAnalysisContainer.load_from_logdir(args.log_dir, device=device)
+            checkpoint_dac.reconstruction_container.to(device)
             print(
                 f"Found existing checkpoint files at training step "
-                f"{data_analysis_container.reconstruction_container.train_step} and epoch "
-                f"{data_analysis_container.reconstruction_container.train_epoch}"
+                f"{checkpoint_dac.reconstruction_container.train_step} and epoch "
+                f"{checkpoint_dac.reconstruction_container.train_epoch}"
             )
-            dataset = data_analysis_container.particle_dataset
-        else:
-            data_analysis_container = None
+            if args.input is None:
+                parse_dataset = False
+        
+        
+        if parse_dataset:
+            print(f"Parsing input from path: {args.input}")
+
             relion_dataset = relion.RelionDataset(
                 args.input,
                 dtype=get_np_dtype(args.dtype),
@@ -72,27 +79,30 @@ class DatasetAnalysisContainer:
                 max_res=args.max_data_resolution
             )
 
-        image_size = dataset.get_output_image_size(0)
-        pixel_size = dataset.get_output_pixel_size(0)
+            image_size = dataset.get_output_image_size(0)
+            pixel_size = dataset.get_output_pixel_size(0)
 
-        if args.cache is not None:
-            dataset.set_cache_root(os.path.join(args.cache, "train"))
+            if args.cache is not None:
+                dataset.set_cache_root(os.path.join(args.cache, "train"))
 
-        optics_groups = dataset.get_optics_group_stats()
-        for i, og in enumerate(optics_groups):
-            if dataset.get_output_image_size(i) != image_size:
-                raise RuntimeError(
-                    f"Optics groups must have the same image size.\n"
-                    f"But optics group '{og['id']}' has {og['image_size']} and "
-                    f"'{optics_groups[0]['id']}' has {image_size}."
-                )
-            if dataset.get_output_pixel_size(i) != pixel_size:
-                warnings.warn(
-                    f"Optics groups must have the same pixel size.\n"
-                    f"But optics group '{og['id']}' has {og['pixel_size']} A and "
-                    f"'{optics_groups[0]['id']}' has {pixel_size} A.",
-                    RuntimeWarning
-                )
+            optics_groups = dataset.get_optics_group_stats()
+            for i, og in enumerate(optics_groups):
+                if dataset.get_output_image_size(i) != image_size:
+                    raise RuntimeError(
+                        f"Optics groups must have the same image size.\n"
+                        f"But optics group '{og['id']}' has {og['image_size']} and "
+                        f"'{optics_groups[0]['id']}' has {image_size}."
+                    )
+                if dataset.get_output_pixel_size(i) != pixel_size:
+                    warnings.warn(
+                        f"Optics groups must have the same pixel size.\n"
+                        f"But optics group '{og['id']}' has {og['pixel_size']} A and "
+                        f"'{optics_groups[0]['id']}' has {pixel_size} A.",
+                        RuntimeWarning
+                    )
+        else:
+            dataset = checkpoint_dac.particle_dataset
+            print(f"Using existing dataset found in checkpoit file.")
 
         # Preload images
         if args.preload:
@@ -100,6 +110,10 @@ class DatasetAnalysisContainer:
             dataset.preload_images()
 
         if not found_checkpoint:
+            ###############################################
+            # Reconstruction Module
+            ###############################################
+
             # Image pre-processing
             max_diameter_ang = image_size * pixel_size - args.circular_mask_thickness
 
@@ -116,9 +130,6 @@ class DatasetAnalysisContainer:
                 else:
                     diameter_ang = args.particle_diameter
 
-            ###############################################
-            # VAE
-            ###############################################
             print("Setting up model...")
 
             try:
@@ -151,7 +162,11 @@ class DatasetAnalysisContainer:
 
             reconstruction_container.to(device)
             reconstruction_container.init_optimizers()
+        else:
+            reconstruction_container = checkpoint_dac.reconstruction_container
+            reconstruction_container.to(device)
 
+        if parse_dataset:
             ###############################################
             # HIDDEN VARIABLE CONTAINER
             ###############################################
@@ -214,15 +229,18 @@ class DatasetAnalysisContainer:
             hidden_variable_container.set_device(device)
             hidden_variable_container.init_optimizers()
 
-            ###############################################
-            # FINALIZE
-            ###############################################
+            if found_checkpoint:
+                hidden_variable_container.mirror_og_stats(checkpoint_dac.hidden_variable_container)
 
-            data_analysis_container = DatasetAnalysisContainer(
-                reconstruction_container=reconstruction_container,
-                particle_dataset=dataset,
-                hidden_variable_container=hidden_variable_container
-            )
+        ###############################################
+        # FINALIZE
+        ###############################################
+
+        data_analysis_container = DatasetAnalysisContainer(
+            reconstruction_container=reconstruction_container,
+            particle_dataset=dataset,
+            hidden_variable_container=hidden_variable_container
+        )
 
         return data_analysis_container
 

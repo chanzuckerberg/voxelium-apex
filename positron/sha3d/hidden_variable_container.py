@@ -99,6 +99,10 @@ class HiddenVariableContainer:
 
         self.acc_data_counts = np.zeros(self.nr_optics_groups, dtype=int)
 
+    def mirror_og_stats(self, other):
+        self.data_stats_established = True
+        self.optics_groups = other.optics_groups
+
     def init_optimizers(self, op_states: Dict[str, Any] = None):
         self.ops = {}
         for k in self.vars:

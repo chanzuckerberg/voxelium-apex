@@ -532,8 +532,8 @@ def train(rank, args, ddp_args):
     except(KeyboardInterrupt, SystemExit):
         print("Exiting!")
 
-    if time.time() - last_save_time > 2:  # Don't save it just made a saved (less than 2 secs ago)
-        dac.save_to_logdir(log_dir)
+    dac.save_to_logdir(log_dir)
+
     if prof is not None:
         prof.__exit__(None, None, None)
         print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=30))
