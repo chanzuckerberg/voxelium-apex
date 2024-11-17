@@ -111,10 +111,11 @@ class SubtomoValidationSampler:
 
                 yield samples
         else:
+            indices = torch.randperm(self.num_groups)
             self.this_batch_validation_size = 0
             for batch_idx in range(self.__len__()):
                 i = batch_idx * self.train_batch_size
-                groups = torch.arange(i, min(i + self.train_batch_size, self.num_groups))
+                groups = indices[i:min(i + self.train_batch_size, self.num_groups)]
                 samples = self.groups_to_samples(groups)
 
                 self.this_batch_size = len(samples)

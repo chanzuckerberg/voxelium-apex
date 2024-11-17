@@ -184,7 +184,7 @@ class ModelContainer(nn.Module):
         features_mean = torch.zeros([1, feature_size]) if features_mean is None else features_mean
         self.features_mean = torch.nn.Parameter(features_mean, requires_grad=False)
 
-        features_std = torch.zeros([1, feature_size]) if features_std is None else features_std
+        features_std = torch.ones([1, feature_size]) if features_std is None else features_std
         self.features_std = torch.nn.Parameter(features_std, requires_grad=False)
 
         self.stats = SpectralStatistics(image_size)
@@ -202,12 +202,12 @@ class ModelContainer(nn.Module):
 
     def normalize_features(self, features, eps=1e-6):
         if self.training:
-            b = 0.1
+            b = 0.01
             self.features_mean.data = self.features_mean.data * b + features.mean(0, keepdim=True) * (1 - b)
             self.features_std.data = self.features_std.data * b + features.std(0, keepdim=True) * (1 - b)
-            return (features - features.mean(0, keepdim=True)) / (features.std(0, keepdim=True) + eps)
-        else:
-            return (features - self.features_mean.data) / (self.features_std.data + eps)
+
+        return (features - self.features_mean.data) / (self.features_std.data + eps)
+        
 
     def z_encode(self, features, noise=0):
         nn = self.z_encoder(features, noise=noise)
@@ -255,6 +255,9 @@ class ModelContainer(nn.Module):
     def zero_grad(self, set_to_none: bool = True) -> None:
         self.adam_opt.zero_grad(set_to_none)
         self.decoder_opt.zero_grad(set_to_none)
+        self.z_encoder.zero_grad(set_to_none)
+        self.s_encoder.zero_grad(set_to_none)
+        self.decoder.zero_grad(set_to_none)
 
     def set_encoder_lr(self, lr):
         for param_group in self.adam_opt.param_groups:

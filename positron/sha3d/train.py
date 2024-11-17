@@ -104,7 +104,7 @@ def train(rank, args, ddp_args):
     # SETUP OPTIMIZATION STATS
     ###############################################
 
-    print("\nINITIALIZING TRAINING", datetime.now().ctime())
+    print("\nINITIALIZING RUN", datetime.now().ctime())
 
     timing_shown_count = 0
 
@@ -213,6 +213,10 @@ def train(rank, args, ddp_args):
     print(f"MSE weight bandpass indices (max index is {rec.max_r}): {rec.mse_bandpass[0]}-{rec.mse_bandpass[1]}")
 
     do_tomo = args.tomo
+    
+    z_relax_iter = 5
+    z_relax_losses = np.zeros(z_relax_iter)
+    z_relax_losses_count = 0
 
     try:
         for epoch in np.arange(rec.train_epoch, max_epochs):
@@ -288,26 +292,83 @@ def train(rank, args, ddp_args):
                     summary.add_scalar("Features/std", features.std())
 
                 features = rec.normalize_features(features)
+                hvc.set_metadata('feature', particle_idx, features[tomo_groups] if do_tomo else features)
 
                 invert_timing = time.time() - tt
 
-                f = features[tomo_groups] if do_tomo else features
-                hvc.set_metadata('feature', particle_idx, f)
-
                 z, _ = rec.z_encode(features)
-                s = rec.s_encode(z, features=features if not finalize else None)
+                s = rec.s_encode(z)
 
-                if do_tomo:
-                    z = z[tomo_groups]
-                    s = s[tomo_groups]
+                hvc.set_metadata('z', particle_idx, z[tomo_groups] if do_tomo else z)
+                hvc.set_metadata('s', particle_idx, s[tomo_groups] if do_tomo else s)
 
-                hvc.set_metadata('z', particle_idx, z)
-                hvc.set_metadata('s', particle_idx, s)
+                if finalize:
+                    s_relaxed = s.detach()
 
-                if finalize and subtract_during_finalize:
-                    subtraction_helper(s, sample, hv)
+                    from torch.optim import LBFGS
 
-                if not finalize:
+                    # Clone z without detaching so it stays in the computation graph
+                    z_relaxed = z.detach().requires_grad_(True)
+                    z_relaxed.retain_grad()
+
+                    optimizer = torch.optim.Adam([z_relaxed], lr=0.1)
+
+                    for i in range(z_relax_iter):
+                        def closure():
+                            rec.zero_grad()
+                            optimizer.zero_grad()
+
+                            # Compute s_relaxed based on the updated z_relaxed
+                            s_relaxed = rec.s_encode(z_relaxed)
+
+                            # Use the appropriate s based on the tomo condition
+                            s_ = s_relaxed[tomo_groups] if do_tomo else s_relaxed
+
+                            x_ft = rec.decoder(s=s_, max_r=image_max_r, rot_matrices=hv["rot_matrices"])
+                            x_ft_shift = fourier_shift_2d(x_ft, hv["shifts_resid"])
+                            x = x_ft_shift * hv['ctfs_'][..., None]
+
+                            spectral_mask = Cache.get_spectral_mask(
+                                x_ft.shape[1:-1],
+                                max_r=image_max_r,
+                                device=device
+                            )
+
+                            y_weight = rec.stats.get_y_weight(eps=1e-3)
+                            weight = y_weight / (y_weight.mean() + 1e-3)
+                            if step > 200:
+                                fsc_mask = rec.stats.get_fsc_spectrum() < 0.3
+                                weight[fsc_mask] = 1e-3
+                            weight *= rec.get_mse_weight_spectrum().to(device)
+                            weight_grid = Cache.spectra_to_grids(weight, hv['ctfs_'].shape[1:], image_max_r)
+                            x_ = torch.view_as_complex(x)
+                            y_ft_ = torch.view_as_complex(y_ft)
+                            square_error = (x_ - y_ft_.detach()).abs().square()
+                            square_error_w = square_error * weight_grid[None]
+                            weighted_mse = (
+                                    square_error_w[:, spectral_mask].mean(0).sum() /
+                                    (weight_grid[spectral_mask].sum() + 1e-12)
+                            )
+                            
+                            # Backpropagate the loss to calculate gradients
+                            weighted_mse.backward()
+
+                            return weighted_mse
+                        
+                        z_relax_losses[i] += optimizer.step(closure).item()
+                    
+                    z_relax_losses_count += 1
+
+                    # Compute s_relaxed based on the updated z_relaxed
+                    s_relaxed = rec.s_encode(z_relaxed)
+
+                    hvc.set_metadata('z_relaxed', particle_idx, z_relaxed[tomo_groups] if do_tomo else z_relaxed)
+                    hvc.set_metadata('s_relaxed', particle_idx, s_relaxed[tomo_groups] if do_tomo else s_relaxed)
+                else:
+                    if do_tomo:
+                        z = z[tomo_groups]
+                        s = s[tomo_groups]
+
                     if log_stats:
                         summary.add_scalar(f"Z/std", z.std())
                         summary.add_scalar(f"Z/mean", z.mean())
@@ -498,7 +559,7 @@ def train(rank, args, ddp_args):
                     prof.step()
 
                 if timing_shown_count == 0 and step > 0:
-                    print("Training has started...")
+                    print("Loop has started...")
                     timing_shown_count += 1
                 elif (step % 10001 == 0 or timing_shown_count < 10 and step % 10 == 0) and step > 0:
                     print(
@@ -534,6 +595,11 @@ def train(rank, args, ddp_args):
 
     dac.save_to_logdir(log_dir)
 
+    z_relax_losses = z_relax_losses / z_relax_losses_count
+    plt.plot(z_relax_losses)
+    plt.show()
+    print(z_relax_losses)
+
     if prof is not None:
         prof.__exit__(None, None, None)
         print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=30))
@@ -561,6 +627,10 @@ def main(args):
 
     sys.stdout = IOLogger(os.path.join(log_dir, 'std.out'))
 
+    # for arg in sys.argv:
+    #     print(arg, end=" ")
+    # print()
+        
     print(args)
     print(f"Running pytorch version {torch.__version__}")
 

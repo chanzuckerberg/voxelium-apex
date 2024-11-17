@@ -145,7 +145,18 @@ class Viewer:
         self.hm_down_button = Button(self.hm_down_button_axes, '↓')
 
         self.hm_text_axes = plt.axes([0.61, 0.01, 0.1, 0.05])
-        self.hm_sigma_text = make_text_box(self.hm_text_axes, f"Heatmap\n{self.hm_sigma}")
+        self.hm_sigma_text = make_text_box(self.hm_text_axes, f"Smooth\n{self.hm_sigma}")
+
+        self.hm_contrast = 0.2
+
+        self.hmc_up_button_axes = plt.axes([0.445, 0.037, 0.02, 0.023])
+        self.hmc_up_button = Button(self.hmc_up_button_axes, '↑')
+
+        self.hmc_down_button_axes = plt.axes([0.445, 0.01, 0.02, 0.023])
+        self.hmc_down_button = Button(self.hmc_down_button_axes, '↓')
+
+        self.hmc_text_axes = plt.axes([0.47, 0.01, 0.1, 0.05])
+        self.hmc_sigma_text = make_text_box(self.hmc_text_axes, f"Contrast\n{self.hm_contrast}")
 
         # B-Factor setting ---------
 
@@ -187,6 +198,8 @@ class Viewer:
         self.save_images_button.on_clicked(self.save_volume_images)
         self.hm_up_button.on_clicked(self.raise_hm_sigma)
         self.hm_down_button.on_clicked(self.lower_hm_sigma)
+        self.hmc_up_button.on_clicked(self.raise_hm_contrast)
+        self.hmc_down_button.on_clicked(self.lower_hm_contrast)
         self.bfactor_up_button.on_clicked(self.raise_bfactor)
         self.bfactor_down_button.on_clicked(self.lower_bfactor)
         self.iso_value_up_button.on_clicked(self.raise_iso_value)
@@ -260,7 +273,8 @@ class Viewer:
 
     @debug_decorator
     def axis_change_event(self, event_ax):
-        print("New axis y-limits are",  event_ax.get_ylim())
+        pass
+        #print("New axis y-limits are",  event_ax.get_ylim())
 
     @debug_decorator
     def get_volume(self, sf):
@@ -275,9 +289,6 @@ class Viewer:
 
     @debug_decorator
     def clear_selection(self, _=None):
-        if len(self.volumes) == 0:
-            return
-
         for i in range(len(self.circles)):
             self.circles[i].remove()
 
@@ -285,6 +296,8 @@ class Viewer:
         self.circles_coord.clear()
         self.selected_ids.clear()
         self.volumes.clear()
+
+        self.clear_subset_selection()
 
         self.set_default_volume()
         self.fig_hm.canvas.draw()
@@ -330,12 +343,25 @@ class Viewer:
         self.ui_visible(False)
         plt.savefig(path)
         self.ui_visible(True)
+        
+        N = 500
+        render_indices = np.random.choice(indices, N, replace=False) if len(indices) > N else indices
+        vol = None
+        for idx in render_indices:
+            if vol is None:
+                vol = self.get_volume(self.structure_factors[idx])
+            else:
+                vol += self.get_volume(self.structure_factors[idx])
+        vol /= N
+        self.volumes.append(vol)
+        self.volume_render_input_queue.put(self.volumes)
 
         self.subset_index += 1
         self.clear_subset_selection()
 
     @debug_decorator
     def subset_selection(self, _=None):
+        self.clear_selection()
         if self.selector_obj is None and not self.subset_selection_ongoing:
             self.subset_selection_ongoing = True
             self.selector_obj = PolygonSelector(
@@ -363,7 +389,11 @@ class Viewer:
     @torch.no_grad()
     @debug_decorator
     def update_hm(self):
-        blur = gaussian_blur(self.hm_sharp, self.hm_sigma)
+        if self.hm_contrast < 0.01:
+            sharp = self.hm_sharp
+        else:
+            sharp = 1 - (self.hm_sharp + 1) ** (-self.hm_contrast)
+        blur = gaussian_blur(sharp, self.hm_sigma)
 
         l = self.hm_lim
         self.ax_hm.imshow(blur, cmap=self.hm_cm, extent=(-l, l, l, -l))
@@ -387,6 +417,10 @@ class Viewer:
 
         self.hm_sigma_text.set_text(f"Smooth\n{round(self.hm_sigma)}")
         self.fig_hm.canvas.blit(self.hm_text_axes.bbox)
+
+        self.hmc_sigma_text.set_text(f"Contrast\n{round(self.hm_contrast, 1)}")
+        self.fig_hm.canvas.blit(self.hmc_text_axes.bbox)
+
         self.fig_hm.canvas.draw()
 
     @torch.no_grad()
@@ -424,6 +458,16 @@ class Viewer:
     @debug_decorator
     def lower_hm_sigma(self, _=None):
         self.hm_sigma = max(2, self.hm_sigma - 1)
+        self.update_hm()
+
+    @debug_decorator
+    def raise_hm_contrast(self, _=None):
+        self.hm_contrast += 0.2
+        self.update_hm()
+
+    @debug_decorator
+    def lower_hm_contrast(self, _=None):
+        self.hm_contrast = max(0, self.hm_contrast - 0.2)
         self.update_hm()
 
     @debug_decorator
@@ -501,7 +545,6 @@ class Viewer:
     def handle_key_press(self, key):
         if key == 'escape':
             self.clear_selection()
-            self.clear_subset_selection()
         elif key == "left":
             self.lower_bfactor()
         elif key == "right":

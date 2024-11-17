@@ -83,18 +83,18 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--encoder_begin_lr',
         help='Beginning learning rate of the encoders',
-        type=range_limited_float_type(0), default=2e-4
+        type=range_limited_float_type(0), default=1e-4
     )
     parser.add_argument(
         '--encoder_lr',
         help='Learning rate of the encoders',
-        type=range_limited_float_type(0), default=5e-5
+        type=range_limited_float_type(0), default=1e-4
     )
 
     parser.add_argument(
         '--grad_clip',
         help='Gradient clipping of the encoder',
-        type=range_limited_float_type(0), default=1e-2
+        type=range_limited_float_type(0), default=1e-3
     )
 
     parser.add_argument(

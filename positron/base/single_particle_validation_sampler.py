@@ -83,9 +83,10 @@ class SingleParticleValidationSampler:
                 batch = torch.cat([valid, train], 0)
                 yield batch
         else:
+            indices = torch.randperm(self.num_samples)
             for batch_idx in range(self.__len__()):
                 i = batch_idx * self.train_batch_size
-                batch = torch.arange(i, min(i + self.train_batch_size, self.num_samples))
+                batch = indices[i: min(i + self.train_batch_size, self.num_samples)]
                 yield batch
 
     def __len__(self):
