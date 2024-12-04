@@ -21,7 +21,7 @@ from positron.base.subtomo_validation_sampler import SubtomoValidationSampler
 from positron.sha3d.subtraction import SubtractionHelper
 from positron.sha3d.train_arguments import append_train_arguments
 
-from positron.base.torch_utils import make_series_line_fig
+from positron.base.torch_utils import make_series_line_fig, make_line_fig
 from positron.sha3d.distributed_processing import DistributedProcessing
 from positron.sha3d.tensorboard_utils import TensorboardSummary
 from positron.sha3d.train_utils import *
@@ -214,8 +214,7 @@ def train(rank, args, ddp_args):
 
     do_tomo = args.tomo
     
-    z_relax_iter = 5
-    z_relax_losses = np.zeros(z_relax_iter)
+    z_relax_losses = np.zeros(args.relax_iter)
     z_relax_losses_count = 0
 
     try:
@@ -224,11 +223,17 @@ def train(rank, args, ddp_args):
             sampler.train()
 
             finalize = False
-            if not finalize and (args.only_finalize or epoch == max_train_epochs):
+            if args.only_finalize or epoch == max_train_epochs:
                 print("Finalizing...")
                 finalize = True
                 sampler.eval()
                 torch.no_grad()
+
+            final_train_epochs = False
+            if epoch >= max_train_epochs - 1:
+                final_train_epochs = True
+                if not finalize:
+                    print("Last training epochs...")
 
             if finalize and subtract_during_finalize:
                 subtraction_helper.initialize()
@@ -303,67 +308,71 @@ def train(rank, args, ddp_args):
                 hvc.set_metadata('s', particle_idx, s[tomo_groups] if do_tomo else s)
 
                 if finalize:
-                    s_relaxed = s.detach()
+                    if args.relax_iter > 0:
+                        s_relaxed = s.detach()
 
-                    from torch.optim import LBFGS
+                        from torch.optim import LBFGS
 
-                    # Clone z without detaching so it stays in the computation graph
-                    z_relaxed = z.detach().requires_grad_(True)
-                    z_relaxed.retain_grad()
+                        # Clone z without detaching so it stays in the computation graph
+                        z_relaxed = z.detach().requires_grad_(True)
+                        z_relaxed.retain_grad()
 
-                    optimizer = torch.optim.Adam([z_relaxed], lr=0.1)
-
-                    for i in range(z_relax_iter):
-                        def closure():
-                            rec.zero_grad()
-                            optimizer.zero_grad()
-
-                            # Compute s_relaxed based on the updated z_relaxed
-                            s_relaxed = rec.s_encode(z_relaxed)
-
-                            # Use the appropriate s based on the tomo condition
-                            s_ = s_relaxed[tomo_groups] if do_tomo else s_relaxed
-
-                            x_ft = rec.decoder(s=s_, max_r=image_max_r, rot_matrices=hv["rot_matrices"])
-                            x_ft_shift = fourier_shift_2d(x_ft, hv["shifts_resid"])
-                            x = x_ft_shift * hv['ctfs_'][..., None]
-
-                            spectral_mask = Cache.get_spectral_mask(
-                                x_ft.shape[1:-1],
-                                max_r=image_max_r,
-                                device=device
-                            )
-
-                            y_weight = rec.stats.get_y_weight(eps=1e-3)
-                            weight = y_weight / (y_weight.mean() + 1e-3)
-                            if step > 200:
-                                fsc_mask = rec.stats.get_fsc_spectrum() < 0.3
-                                weight[fsc_mask] = 1e-3
-                            weight *= rec.get_mse_weight_spectrum().to(device)
-                            weight_grid = Cache.spectra_to_grids(weight, hv['ctfs_'].shape[1:], image_max_r)
-                            x_ = torch.view_as_complex(x)
-                            y_ft_ = torch.view_as_complex(y_ft)
-                            square_error = (x_ - y_ft_.detach()).abs().square()
-                            square_error_w = square_error * weight_grid[None]
-                            weighted_mse = (
-                                    square_error_w[:, spectral_mask].mean(0).sum() /
-                                    (weight_grid[spectral_mask].sum() + 1e-12)
-                            )
-                            
-                            # Backpropagate the loss to calculate gradients
-                            weighted_mse.backward()
-
-                            return weighted_mse
+                        optimizer = torch.optim.Adam([z_relaxed], lr=args.relax_lr)
                         
-                        z_relax_losses[i] += optimizer.step(closure).item()
-                    
-                    z_relax_losses_count += 1
+                        for i in range(args.relax_iter):
+                            def closure():
+                                rec.zero_grad()
+                                optimizer.zero_grad()
 
-                    # Compute s_relaxed based on the updated z_relaxed
-                    s_relaxed = rec.s_encode(z_relaxed)
+                                # Compute s_relaxed based on the updated z_relaxed
+                                s_relaxed = rec.s_encode(z_relaxed)
 
-                    hvc.set_metadata('z_relaxed', particle_idx, z_relaxed[tomo_groups] if do_tomo else z_relaxed)
-                    hvc.set_metadata('s_relaxed', particle_idx, s_relaxed[tomo_groups] if do_tomo else s_relaxed)
+                                # Use the appropriate s based on the tomo condition
+                                s_ = s_relaxed[tomo_groups] if do_tomo else s_relaxed
+
+                                x_ft = rec.decoder(s=s_, max_r=image_max_r, rot_matrices=hv["rot_matrices"])
+                                x_ft_shift = fourier_shift_2d(x_ft, hv["shifts_resid"])
+                                x = x_ft_shift * hv['ctfs_'][..., None]
+
+                                x_ = torch.view_as_complex(x)
+                                y_ft_ = torch.view_as_complex(y_ft)
+                                y_weight = rec.stats.get_y_weight(eps=1e-3)
+
+                                spectral_mask = Cache.get_spectral_mask(
+                                    x_ft.shape[1:-1],
+                                    max_r=image_max_r,
+                                    device=device
+                                )
+
+                                weight = y_weight / (y_weight.mean() + 1e-3)
+                                if step > 200:
+                                    fsc_mask = rec.stats.get_fsc_spectrum() < 0.3
+                                    weight[fsc_mask] = 1e-3
+                                weight *= rec.get_mse_weight_spectrum().to(device)
+                                weight_grid = Cache.spectra_to_grids(weight, hv['ctfs_'].shape[1:], image_max_r)
+                                x_ = torch.view_as_complex(x)
+                                y_ft_ = torch.view_as_complex(y_ft)
+                                square_error = (x_ - y_ft_.detach()).abs().square()
+                                square_error_w = square_error * weight_grid[None]
+                                loss = (
+                                        square_error_w[:, spectral_mask].mean(0).sum() /
+                                        (weight_grid[spectral_mask].sum() + 1e-12)
+                                )
+                                
+                                # Backpropagate the loss to calculate gradients
+                                loss.backward()
+
+                                return loss
+                            
+                            z_relax_losses[i] += optimizer.step(closure).item()
+                        
+                        z_relax_losses_count += 1
+
+                        # Compute s_relaxed based on the updated z_relaxed
+                        s_relaxed = rec.s_encode(z_relaxed)
+
+                        hvc.set_metadata('z_relaxed', particle_idx, z_relaxed[tomo_groups] if do_tomo else z_relaxed)
+                        hvc.set_metadata('s_relaxed', particle_idx, s_relaxed[tomo_groups] if do_tomo else s_relaxed)
                 else:
                     if do_tomo:
                         z = z[tomo_groups]
@@ -485,27 +494,21 @@ def train(rank, args, ddp_args):
 
                         total_loss.backward()
 
-                        reg_count = min(valid_batch_size * 2, this_batch_size - 1)
-
                         decoder_lr = ((args.decoder_begin_lr - args.decoder_lr) *
                                       cosine_descend(50, 150, step) + args.decoder_lr)
                         rec.set_decoder_lr(decoder_lr)
-                        rec.decoder_opt.step(fsc_spectrum=fsc_spectrum)
+                        if not final_train_epochs:
+                            rec.decoder_opt.step(fsc_spectrum=fsc_spectrum)
 
                         _, data_ctf_spectra, avg_ctf2 = hvc.get_data_stats(0)
 
                         solvent_mask_applicator(data_ctf_spectra)
 
                         rec.clip_grad(args.grad_clip)
-                        # encoder_lr = cyclic_lr(
-                        #     args.encoder_lr, args.encoder_begin_lr, epoch_partial, max_train_epochs - 2)
-                        lam = epoch_partial / (max_train_epochs - 2)
-                        encoder_lr = ((args.encoder_begin_lr - args.encoder_lr) *
-                                      cosine_descend(0.5, 1., lam) + args.encoder_lr)
+                        encoder_lr = args.encoder_final_lr if final_train_epochs else args.encoder_lr
                         rec.set_encoder_lr(encoder_lr)
                         rec.adam_opt.step()
-
-                        rec.zero_grad()
+                        
                         rec.eval()
 
                         if log_stats:
@@ -516,26 +519,29 @@ def train(rank, args, ddp_args):
                             summary.add_scalar(f"Learning Rates/Encoders", encoder_lr)
                             summary.add_scalar(f"Learning Rates/Decoder", decoder_lr)
 
-                        with torch.no_grad():
-                            train_mask_ = train_mask[:reg_count]
-                            s_ = s[:reg_count].detach()
-                            ctf_ = hv['ctfs_'][:reg_count, ..., None]
-                            y_ = y_ft[:reg_count]
+                        if not final_train_epochs:
+                            with torch.no_grad():
+                                reg_count = min(valid_batch_size * 2, this_batch_size - 1)
+                                
+                                train_mask_ = train_mask[:reg_count]
+                                s_ = s[:reg_count].detach()
+                                ctf_ = hv['ctfs_'][:reg_count, ..., None]
+                                y_ = y_ft[:reg_count]
 
-                            rot = hv["rot_matrices"][:reg_count]
-                            shifts = hv["shifts_resid"][:reg_count]
+                                rot = hv["rot_matrices"][:reg_count]
+                                shifts = hv["shifts_resid"][:reg_count]
 
-                            x_ft = rec.decoder(s=s_, max_r=image_max_r, rot_matrices=rot)
-                            x_ft_shift = fourier_shift_2d(x_ft, shifts)
-                            x_ = x_ft_shift * ctf_
+                                x_ft = rec.decoder(s=s_, max_r=image_max_r, rot_matrices=rot)
+                                x_ft_shift = fourier_shift_2d(x_ft, shifts)
+                                x_ = x_ft_shift * ctf_
 
-                        rec.stats.update(
-                            x=x_, y=y_, ctf2=avg_ctf2,
-                            train_mask=train_mask_,
-                            valid_mask=~train_mask_,
-                            mse=square_error_valid.mean(0),
-                            momentum=0.99
-                        )
+                            rec.stats.update(
+                                x=x_, y=y_, ctf2=avg_ctf2,
+                                train_mask=train_mask_,
+                                valid_mask=~train_mask_,
+                                mse=square_error_valid.mean(0),
+                                momentum=0.99
+                            )
 
                         if log_stats:
                             summary.write_stats(x_ft, y_ft, hv["amp"], hv["amp_ctf"])
@@ -593,12 +599,11 @@ def train(rank, args, ddp_args):
     except(KeyboardInterrupt, SystemExit):
         print("Exiting!")
 
-    dac.save_to_logdir(log_dir)
+    if z_relax_losses_count > 0:
+        z_relax_losses = z_relax_losses / z_relax_losses_count
+        summary.add_figure("Relax Loss", make_line_fig(np.arange(len(z_relax_losses)), z_relax_losses))
 
-    z_relax_losses = z_relax_losses / z_relax_losses_count
-    plt.plot(z_relax_losses)
-    plt.show()
-    print(z_relax_losses)
+    dac.save_to_logdir(log_dir)
 
     if prof is not None:
         prof.__exit__(None, None, None)
@@ -627,11 +632,11 @@ def main(args):
 
     sys.stdout = IOLogger(os.path.join(log_dir, 'std.out'))
 
-    # for arg in sys.argv:
-    #     print(arg, end=" ")
-    # print()
+    for arg in sys.argv:
+        print(arg, end=" ")
+    print(end="\n\n")
         
-    print(args)
+    print(args, end="\n\n")
     print(f"Running pytorch version {torch.__version__}")
 
     DistributedProcessing.global_setup(

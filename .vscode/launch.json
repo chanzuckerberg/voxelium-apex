@@ -1,0 +1,24 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File with Arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/positron/sha3d/train.py",
+            "console": "integratedTerminal",
+            "args": [
+                "logdirs/test_",
+                "-i", "refine3d/run_data.star",
+                "-p",
+                "--gpu", "0",
+                "--epoch", "10",
+                "--stats_steps", "1"
+            ],
+            "cwd": "/hpc/projects/group.czii/dari.kimanius/ceph_dump/waving_spike/waving_spike/"
+        }
+    ]
+}

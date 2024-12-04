@@ -69,14 +69,12 @@ class Summary(torch.nn.Module):
     @staticmethod
     def compose_from_modules(mnx, hvc: HiddenVariableContainer):
         circular_mask_radius, circular_mask_thickness = mnx.get_circular_mask_params()
-        # z = hvc.get_metadata('z_relaxed')
-        # s = hvc.get_metadata('s_relaxed')
+        z = hvc.get_metadata('z_relaxed')
+        s = hvc.get_metadata('s_relaxed')
         
-        # if z is None:
-        z = hvc.get_metadata('z')
-
-        # if s is None:
-        s = hvc.get_metadata('s')
+        if z is None:
+            z = hvc.get_metadata('z')
+            s = hvc.get_metadata('s')
 
         metadata = {
             'z': z,

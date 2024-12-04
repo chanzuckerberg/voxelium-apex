@@ -107,13 +107,11 @@ class Viewer:
 
         print(f"Found {embed.size(0)} points.")
 
-        x = embed[:, 0].cpu().numpy().astype(np.float32)
-        y = embed[:, 1].cpu().numpy().astype(np.float32)
+        z = embed.cpu().numpy().astype(np.float32)
 
-        x = (x - x.mean()) / (x.std() + 1e-3)
-        y = (y - y.mean()) / (y.std() + 1e-3)
-
-        self.coord = np.stack([x, y], 1)
+        z_min = np.min(z, axis=0)
+        z_max = np.max(z, axis=0)
+        self.coord = (z - z_min) / (z_max - z_min)
 
         # VOLUME RENDERER QUEUES -----------------------------------------------------------------------
 
@@ -189,6 +187,7 @@ class Viewer:
         self.circles_coord = []
         self.selected_ids = []
         self.volumes = []
+        self.lines = None
 
         self.selector_line = {'color': '#c596fb', 'linewidth': 4, 'alpha': 0.8}
 
@@ -209,26 +208,14 @@ class Viewer:
 
         self.hm_cm = get_default_cmap()
 
-        self.marker_size = 0.05
+        self.marker_size = 0.007
         self.hm_bins = 800
-        self.hm_lim = 3
 
         c = np.unique(self.coord, axis=0)
-
-        c = (c / (3 * self.hm_lim) + 0.5) * self.hm_bins
-        mask = (0 <= c) & (c < self.hm_bins - 0.5)
-        mask = mask.all(axis=1)
-        c = np.round(c[mask]).astype(int)
-
-        # self.z_min = np.min(c, axis=0)
-        # self.z_max = np.max(c, axis=0)
-        # c = (c - self.z_min) / (self.z_max - self.z_min) * (self.hm_bins - 1)
-        # c = np.round(c).astype(int)
+        c = np.round(c * (self.hm_bins - 1)).astype(int)
 
         self.hm_sharp = np.zeros([self.hm_bins, self.hm_bins])
         np.add.at(self.hm_sharp, (c[:, 1], c[:, 0]), 1)
-
-        # self.hm_sharp = self.hm_sharp ** 0.1
 
         self.update_hm()
 
@@ -296,6 +283,9 @@ class Viewer:
         self.circles_coord.clear()
         self.selected_ids.clear()
         self.volumes.clear()
+        if self.lines is not None:
+            self.lines.remove()
+            self.lines = None
 
         self.clear_subset_selection()
 
@@ -343,18 +333,18 @@ class Viewer:
         self.ui_visible(False)
         plt.savefig(path)
         self.ui_visible(True)
+
+        # self.ax_hm.plot(self.coord[mask, 0], self.coord[mask, 1])
         
-        N = 500
-        render_indices = np.random.choice(indices, N, replace=False) if len(indices) > N else indices
-        vol = None
-        for idx in render_indices:
-            if vol is None:
-                vol = self.get_volume(self.structure_factors[idx])
-            else:
-                vol += self.get_volume(self.structure_factors[idx])
-        vol /= N
-        self.volumes.append(vol)
-        self.volume_render_input_queue.put(self.volumes)
+        N = min(len(indices), 500)
+        if N > 0:
+            render_indices = np.random.choice(indices, N, replace=False) if len(indices) > N else indices
+            vol = self.get_volume(self.structure_factors[render_indices[0]])
+            for i in range(len(render_indices) - 1):
+                vol += self.get_volume(self.structure_factors[render_indices[i + 1]])
+            vol /= N
+            self.volumes.append(vol)
+            self.volume_render_input_queue.put(self.volumes)
 
         self.subset_index += 1
         self.clear_subset_selection()
@@ -395,25 +385,10 @@ class Viewer:
             sharp = 1 - (self.hm_sharp + 1) ** (-self.hm_contrast)
         blur = gaussian_blur(sharp, self.hm_sigma)
 
-        l = self.hm_lim
-        self.ax_hm.imshow(blur, cmap=self.hm_cm, extent=(-l, l, l, -l))
+        self.ax_hm.imshow(blur, cmap=self.hm_cm, extent=(0, 1, 1, 0))
 
-        self.ax_hm.set_xlim([-l, l])
-        self.ax_hm.set_ylim([-l, l])
-
-        # m = np.max(self.hm_sharp) * 0.5
-        # self.hm_sharp[self.hm_sharp > m] = m
-        #
-        # blur = gaussian_blur(self.hm_sharp, self.hm_sigma)
-        #
-        # self.ax_hm.imshow(
-        #     blur,
-        #     cmap=self.hm_cm,
-        #     extent=(self.z_min[0], self.z_max[0], self.z_max[1], self.z_min[1])
-        # )
-        #
-        # self.ax_hm.set_xlim([self.z_min[0], self.z_max[0]])
-        # self.ax_hm.set_ylim([self.z_min[1], self.z_max[1]])
+        self.ax_hm.set_xlim([0, 1])
+        self.ax_hm.set_ylim([0, 1])
 
         self.hm_sigma_text.set_text(f"Smooth\n{round(self.hm_sigma)}")
         self.fig_hm.canvas.blit(self.hm_text_axes.bbox)
@@ -514,9 +489,7 @@ class Viewer:
                     self.circles_coord.append(xy)
                     self.selected_ids.append(idx)
                     self.volumes.append(vol)
-                    # print("Selected point index", idx)
-                    # print("S =", list(self.structure_factors[idx].cpu().detach().numpy()))
-                    # print("Z =", list(self.embed[idx].cpu().detach().numpy()))
+
                     self.ax_hm.add_patch(circle)
                     state_change = True
 
@@ -535,6 +508,13 @@ class Viewer:
                         state_change = True
 
         if state_change:
+            if self.lines is not None:
+                self.lines.remove()
+                self.lines = None
+            if len(self.circles_coord) > 1:
+                c = np.array(self.circles_coord)
+                self.lines, = self.ax_hm.plot(c[:, 0], c[:, 1], 'k-', alpha=0.5)
+            
             if len(self.volumes) == 0:
                 self.set_default_volume()
             else:
