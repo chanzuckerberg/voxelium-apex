@@ -296,7 +296,12 @@ def train(rank, args, ddp_args):
                     summary.add_scalar("Features/mean", features.mean())
                     summary.add_scalar("Features/std", features.std())
 
-                features = rec.normalize_features(features)
+                if finalize: feature_beta = 0
+                elif final_train_epochs: feature_beta = 0.001  # Final round
+                elif epoch == 0: feature_beta = 0.1  # At the start
+                else: feature_beta = 0.01  # Most of training
+                features = rec.normalize_features(features, beta=feature_beta)
+
                 hvc.set_metadata('feature', particle_idx, features[tomo_groups] if do_tomo else features)
 
                 invert_timing = time.time() - tt
@@ -354,10 +359,29 @@ def train(rank, args, ddp_args):
                                 y_ft_ = torch.view_as_complex(y_ft)
                                 square_error = (x_ - y_ft_.detach()).abs().square()
                                 square_error_w = square_error * weight_grid[None]
-                                loss = (
+                                wmse = (
                                         square_error_w[:, spectral_mask].mean(0).sum() /
                                         (weight_grid[spectral_mask].sum() + 1e-12)
                                 )
+                                
+                                z_relaxed_ = (z_relaxed - z_relaxed.mean(0, keepdim=True)) / (z_relaxed.std(0, keepdim=True) + 1e-12)
+                                distances = torch.cdist(z_relaxed_, z_relaxed_)
+                                distances.fill_diagonal_(float('inf'))
+                                _, closest_indices = torch.min(distances, dim=1)
+                                closest_point = z_relaxed_[closest_indices]
+
+                                nn_distance = (closest_point - z_relaxed_).abs()
+                                nn_distance_clip = nn_distance.clip(1e-2)
+                                z_relaxed_noise = z_relaxed_ + nn_distance_clip * torch.randn_like(z_relaxed_) * args.smoothness_distance
+                                s_noise_ = rec.s_encode(z_relaxed_noise)
+
+                                s_ = s_[:, 1:] if do_roi else s_
+                                s_noise_ = s_noise_[:, 1:] if do_roi else s_noise_
+
+                                s_consistency_loss = (s_ - s_noise_)[train_mask].square().sum(1).mean()
+                                z_compactness_loss = z_relaxed.square().sum(1).mean()
+
+                                loss = wmse + z_compactness_loss * args.z_compactness_weight + s_consistency_loss * args.s_consistency_weight
                                 
                                 # Backpropagate the loss to calculate gradients
                                 loss.backward()
@@ -444,11 +468,21 @@ def train(rank, args, ddp_args):
 
                         if args.s_consistency_weight > 0 and args.smoothness_distance > 0:
                             distances = torch.cdist(features, features)
+                            if log_dir:
+                                summary.add_scalar("Features/Distance mean", distances.mean())
+                                summary.add_scalar("Features/Distance std", distances.std())
+
                             distances.fill_diagonal_(float('inf'))
                             _, closest_indices = torch.min(distances, dim=1)
                             closest_point = features[closest_indices]
-                            feature_noise = (closest_point - features).abs().clip(1e-3) * torch.randn_like(features)
-                            features_ = features + feature_noise * args.smoothness_distance
+
+                            nn_distance = (closest_point - features).abs()
+                            nn_distance_clip = nn_distance.clip(args.smoothness_distance_min)
+                            features_ = features + nn_distance_clip * torch.randn_like(features) * args.smoothness_distance
+
+                            if log_stats:
+                                summary.add_scalar("Features/NN distance mean", nn_distance.mean())
+                                summary.add_scalar("Features/NN distance std", nn_distance.std())
 
                             z_noise, _ = rec.z_encode(features_)
                             s_noise = rec.s_encode(z_noise, features=features_)

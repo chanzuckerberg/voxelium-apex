@@ -22,9 +22,6 @@ def append_train_arguments(parser):
     parser.add_argument('--dataloader_threads', '--dj', type=int, default=2)
     parser.add_argument('--tomo', action='store_true')
 
-    parser.add_argument('--nbn_z', action='store_true')
-    parser.add_argument('--nbn_s', action='store_true')
-
     parser.add_argument(
         '--z_size', '-z',
         help='Number of learnt representation dimensions.',
@@ -130,6 +127,11 @@ def append_train_arguments(parser):
         '--smoothness_distance',
         help='Pair distance for smoothness loss',
         type=range_limited_float_type(0, 1), default=.3
+    )
+    parser.add_argument(
+        '--smoothness_distance_min',
+        help='Minimum fraction of the mean pair distance for smoothness loss',
+        type=range_limited_float_type(0), default=1e-2
     )
 
     parser.add_argument(

@@ -77,8 +77,6 @@ class ModelContainer(nn.Module):
             features_std=None,
             do_roi=False,
             s0_ema=None,
-            nbn_z=False,
-            nbn_s=False
     ) -> None:
         super().__init__()
 
@@ -88,9 +86,6 @@ class ModelContainer(nn.Module):
         self.voxel_size = voxel_size
         self.circular_mask_radius_ang = circular_mask_radius_ang
         self.circular_mask_thickness_ang = circular_mask_thickness_ang
-
-        self.nbn_z = nbn_z
-        self.nbn_s = nbn_s
 
         self.train_epoch = train_epoch
         self.train_step = train_step
@@ -147,7 +142,7 @@ class ModelContainer(nn.Module):
             output_dim=z_size * 2,
             resid_dim=128,
             resid_count=4,
-            normalize_fn=torch.nn.BatchNorm1d if not nbn_z else None
+            normalize_fn=None
         )
 
         self.s_encoder = Encoder(
@@ -155,7 +150,7 @@ class ModelContainer(nn.Module):
             output_dim=s_size,
             resid_dim=128,
             resid_count=4,
-            normalize_fn=torch.nn.BatchNorm1d if not nbn_s else None
+            normalize_fn=None
         )
 
         self.norm_network = None
@@ -194,21 +189,14 @@ class ModelContainer(nn.Module):
         circular_mask_thickness = self.circular_mask_thickness_ang / self.voxel_size
         return circular_mask_radius, circular_mask_thickness
 
-    def reparameterize(self, mu, logvar):
-        logvar = logvar.clip(max=10)
-        std = torch.exp(0.5 * logvar)
-        eps = torch.randn_like(std)
-        return eps * std + mu
 
-    def normalize_features(self, features, eps=1e-6):
-        if self.training:
-            b = 0.01
-            self.features_mean.data = self.features_mean.data * b + features.mean(0, keepdim=True) * (1 - b)
-            self.features_std.data = self.features_std.data * b + features.std(0, keepdim=True) * (1 - b)
+    def normalize_features(self, features, beta=0, eps=1e-6):
+        if beta > 0:
+            self.features_mean.data = self.features_mean.data * beta + features.mean(0, keepdim=True) * (1 - beta)
+            self.features_std.data = self.features_std.data * beta + features.std(0, keepdim=True) * (1 - beta)
 
         return (features - self.features_mean.data) / (self.features_std.data + eps)
         
-
     def z_encode(self, features, noise=0):
         nn = self.z_encoder(features, noise=noise)
         z = nn[:, :nn.size(1) // 2]
@@ -310,9 +298,6 @@ class ModelContainer(nn.Module):
             "do_roi": self.do_roi,
             "s0_ema": self.s0_ema,
 
-            "nbn_z": self.nbn_z,
-            "nbn_s": self.nbn_s,
-
             "spectral_stats": self.stats.get_state_dict()
         }
 
@@ -354,8 +339,6 @@ class ModelContainer(nn.Module):
                 features_std=state_dict["features_std"],
                 do_roi=state_dict["do_roi"],
                 s0_ema=state_dict["s0_ema"],
-                nbn_z=state_dict["nbn_z"],
-                nbn_s=state_dict["nbn_s"]
             )
 
             container.z_encoder.load_state_dict(state_dict["z_encoder"])
