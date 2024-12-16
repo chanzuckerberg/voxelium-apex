@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Current File with Arguments",
+            "name": "Waving Spike",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/positron/sha3d/train.py",
@@ -19,6 +19,21 @@
                 "--stats_steps", "1"
             ],
             "cwd": "/hpc/projects/group.czii/dari.kimanius/ceph_dump/waving_spike/waving_spike/"
+        },
+        {
+            "name": "Gsec",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/positron/sha3d/train.py",
+            "console": "integratedTerminal",
+            "args": [
+                "positron_logdirs/test1_subset2",
+                "-i", "positron_logdirs/test1/subset_2.star",
+                "--gpu", "0",
+                "--epoch", "5",
+                "--stats_steps", "1"
+            ],
+            "cwd": "/hpc/projects/group.czii/dari.kimanius/ceph_dump/gsec_orig/"
         }
     ]
 }

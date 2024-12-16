@@ -91,12 +91,12 @@ def append_train_arguments(parser):
     parser.add_argument(
         '--relax_lr',
         help='Learning rate for the relaxation during finalization',
-        type=range_limited_float_type(0), default=0.05
+        type=range_limited_float_type(0), default=0.02
     )
     parser.add_argument(
         '--relax_iter',
         help='Learning rate for the relaxation during finalization',
-        type=range_limited_int_type(0), default=5
+        type=range_limited_int_type(0), default=10
     )
 
     parser.add_argument(

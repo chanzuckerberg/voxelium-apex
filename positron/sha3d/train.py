@@ -359,31 +359,30 @@ def train(rank, args, ddp_args):
                                 y_ft_ = torch.view_as_complex(y_ft)
                                 square_error = (x_ - y_ft_.detach()).abs().square()
                                 square_error_w = square_error * weight_grid[None]
-                                wmse = (
+                                loss = (
                                         square_error_w[:, spectral_mask].mean(0).sum() /
                                         (weight_grid[spectral_mask].sum() + 1e-12)
                                 )
                                 
-                                z_relaxed_ = (z_relaxed - z_relaxed.mean(0, keepdim=True)) / (z_relaxed.std(0, keepdim=True) + 1e-12)
-                                distances = torch.cdist(z_relaxed_, z_relaxed_)
-                                distances.fill_diagonal_(float('inf'))
-                                _, closest_indices = torch.min(distances, dim=1)
-                                closest_point = z_relaxed_[closest_indices]
+                                # z_relaxed_ = (z_relaxed - z_relaxed.mean(0, keepdim=True)) / (z_relaxed.std(0, keepdim=True) + 1e-12)
+                                # distances = torch.cdist(z_relaxed_, z_relaxed_)
+                                # distances.fill_diagonal_(float('inf'))
+                                # _, closest_indices = torch.min(distances, dim=1)
+                                # closest_point = z_relaxed_[closest_indices]
 
-                                nn_distance = (closest_point - z_relaxed_).abs()
-                                nn_distance_clip = nn_distance.clip(1e-2)
-                                z_relaxed_noise = z_relaxed_ + nn_distance_clip * torch.randn_like(z_relaxed_) * args.smoothness_distance
-                                s_noise_ = rec.s_encode(z_relaxed_noise)
+                                # nn_distance = (closest_point - z_relaxed_).abs()
+                                # nn_distance_clip = nn_distance.clip(1e-2)
+                                # z_relaxed_noise = z_relaxed_ + nn_distance_clip * torch.randn_like(z_relaxed_) * args.smoothness_distance
+                                # s_noise_ = rec.s_encode(z_relaxed_noise)
 
-                                s_ = s_[:, 1:] if do_roi else s_
-                                s_noise_ = s_noise_[:, 1:] if do_roi else s_noise_
+                                # s_ = s_[:, 1:] if do_roi else s_
+                                # s_noise_ = s_noise_[:, 1:] if do_roi else s_noise_
 
-                                s_consistency_loss = (s_ - s_noise_)[train_mask].square().sum(1).mean()
-                                z_compactness_loss = z_relaxed.square().sum(1).mean()
+                                # s_consistency_loss = (s_ - s_noise_)[train_mask].square().sum(1).mean()
+                                # z_compactness_loss = z_relaxed.square().sum(1).mean()
 
-                                loss = wmse + z_compactness_loss * args.z_compactness_weight + s_consistency_loss * args.s_consistency_weight
+                                # loss = wmse + z_compactness_loss * args.z_compactness_weight + s_consistency_loss * args.s_consistency_weight
                                 
-                                # Backpropagate the loss to calculate gradients
                                 loss.backward()
 
                                 return loss
@@ -553,17 +552,16 @@ def train(rank, args, ddp_args):
                             summary.add_scalar(f"Learning Rates/Encoders", encoder_lr)
                             summary.add_scalar(f"Learning Rates/Decoder", decoder_lr)
 
-                        if not final_train_epochs:
+                        subset_size = valid_batch_size * 2
+                        if not final_train_epochs and this_batch_size >= subset_size:
                             with torch.no_grad():
-                                reg_count = min(valid_batch_size * 2, this_batch_size - 1)
-                                
-                                train_mask_ = train_mask[:reg_count]
-                                s_ = s[:reg_count].detach()
-                                ctf_ = hv['ctfs_'][:reg_count, ..., None]
-                                y_ = y_ft[:reg_count]
+                                train_mask_ = train_mask[:subset_size]
+                                s_ = s[:subset_size].detach()
+                                ctf_ = hv['ctfs_'][:subset_size, ..., None]
+                                y_ = y_ft[:subset_size]
 
-                                rot = hv["rot_matrices"][:reg_count]
-                                shifts = hv["shifts_resid"][:reg_count]
+                                rot = hv["rot_matrices"][:subset_size]
+                                shifts = hv["shifts_resid"][:subset_size]
 
                                 x_ft = rec.decoder(s=s_, max_r=image_max_r, rot_matrices=rot)
                                 x_ft_shift = fourier_shift_2d(x_ft, shifts)
