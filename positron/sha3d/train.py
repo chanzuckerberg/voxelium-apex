@@ -292,6 +292,9 @@ def train(rank, args, ddp_args):
                 features = feature_extractor(
                     hv=hv, y=y_ft, wy=wy, wx=torch.ones_like(wy), groups=tomo_groups, s0=s0_)
 
+                if torch.any(torch.isnan(features)):
+                    print("NaN in feat 2", step)
+
                 if log_stats:
                     summary.add_scalar("Features/mean", features.mean())
                     summary.add_scalar("Features/std", features.std())
@@ -308,6 +311,9 @@ def train(rank, args, ddp_args):
 
                 z, _ = rec.z_encode(features)
                 s = rec.s_encode(z)
+
+                if torch.any(torch.isnan(z)):
+                    print("NaN in Z", step)
 
                 hvc.set_metadata('z', particle_idx, z[tomo_groups] if do_tomo else z)
                 hvc.set_metadata('s', particle_idx, s[tomo_groups] if do_tomo else s)
@@ -467,7 +473,7 @@ def train(rank, args, ddp_args):
 
                         if args.s_consistency_weight > 0 and args.smoothness_distance > 0:
                             distances = torch.cdist(features, features)
-                            if log_dir:
+                            if log_stats:
                                 summary.add_scalar("Features/Distance mean", distances.mean())
                                 summary.add_scalar("Features/Distance std", distances.std())
 
@@ -552,7 +558,7 @@ def train(rank, args, ddp_args):
                             summary.add_scalar(f"Learning Rates/Encoders", encoder_lr)
                             summary.add_scalar(f"Learning Rates/Decoder", decoder_lr)
 
-                        subset_size = valid_batch_size * 2
+                        subset_size = torch.sum(~train_mask) * 2
                         if not final_train_epochs and this_batch_size >= subset_size:
                             with torch.no_grad():
                                 train_mask_ = train_mask[:subset_size]
@@ -677,6 +683,7 @@ def main(args):
 
 
 if __name__ == "__main__":
+    sys.argv += ["/hpc/projects/group.czii/dari.kimanius/josh_ribo/positron_logdirs/test/", "-i", "/hpc/projects/group.czii/dari.kimanius/josh_ribo/stack_10A.star", "--tomo", "--gpu", "0"]
 
     parser = argparse.ArgumentParser(
         prog="Train a spectral heterogeneity analysis (SHA) 3D model.",

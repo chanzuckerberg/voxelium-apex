@@ -70,6 +70,9 @@ class SpectralStatistics(torch.nn.Module):
 
     @torch.no_grad()
     def update(self, x, y, ctf2, train_mask, valid_mask, mse, momentum=0.99):
+        if not torch.any(train_mask) or not torch.any(valid_mask):
+            raise RuntimeError('Invalid train or valid mask.')
+
         x = torch.view_as_complex(x).detach()
         y = torch.view_as_complex(y).detach()
 
