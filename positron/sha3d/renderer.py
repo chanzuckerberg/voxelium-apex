@@ -1,4 +1,3 @@
-import multiprocessing as mp
 import time
 
 import numpy as np
@@ -226,29 +225,7 @@ class VolumeRenderer:
         self.interactor.TerminateApp()
 
     @staticmethod
-    @debug_decorator
-    def startNewProcess(input_queue, output_queue):
-        vr = VolumeRenderer(input_queue, output_queue)
+    def startNewProcess(input_queue, output_queue, windowName):
+        vr = VolumeRenderer(input_queue, output_queue, windowName)
         vr.start()
-
-
-def volumeRendererProcessLoop(input_queue, output_queue):
-    while True:
-        if not input_queue.empty():
-            vol = input_queue.get()
-            input_queue.put(vol)
-            if vol is not None:
-                if isinstance(vol, str) and vol == "exit":
-                    return
-                p = mp.Process(
-                    target=VolumeRenderer.startNewProcess,
-                    args=(input_queue, output_queue)
-                )
-                p.start()
-                p.join()
-                p.terminate()
-        else:
-            try:
-                time.sleep(0.1)
-            except KeyboardInterrupt:
-                return
+        output_queue.put("exit")

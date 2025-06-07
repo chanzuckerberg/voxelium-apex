@@ -13,13 +13,6 @@ import torch
 from positron.base import grid_iterator, dt_desymmetrize, dt_symmetrize
 from positron.base.explicit_grid_utils import radial_index_expansion_3d, size_to_maxr
 
-try:
-    import positron_sparse3d
-except ImportError:
-    print("Could not find Positron extension 'sparse3d'.")
-    sys.exit(1)
-
-
 class ReconstructionLayer3D(torch.nn.Module):
     def __init__(
             self,
@@ -204,7 +197,9 @@ class TrilinearProjection(torch.autograd.Function):
     ):
         assert grid3d_index.shape[0] == grid3d_index.shape[1] == grid3d_index.shape[2] * 2 - 1
 
-        output = positron_sparse3d.trilinear_projection_forward(
+        from positron_sparse3d import trilinear_projection_forward as forward
+
+        output = forward(
             input=input,
             weight=weight,
             bias=torch.empty([0, 0], dtype=weight.dtype).to(weight.device) if bias is None else bias,
@@ -234,8 +229,10 @@ class TrilinearProjection(torch.autograd.Function):
             max_r, backprop_eps, testing \
             = ctx.saved_tensors
 
+        from positron_sparse3d import trilinear_projection_backward as backward
+
         grad_input, grad_weight, grad_bias, backprop_weight, grad_rot_matrix = \
-            positron_sparse3d.trilinear_projection_backward(
+            backward(
                 input=input,
                 grid2d_grad=grad_output.contiguous(),
                 weight=weight,

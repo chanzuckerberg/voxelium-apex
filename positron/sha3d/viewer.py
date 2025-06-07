@@ -25,7 +25,7 @@ from positron.base.plot import get_default_cmap
 from positron.base.torch_utils import pca_dim_reduction
 from positron.sha3d.summary import Summary
 from positron.sha3d.train_utils import setup_device
-from positron.sha3d.renderer import volumeRendererProcessLoop
+from positron.sha3d.renderer import VolumeRenderer
 
 # from matplotlib import backend_bases
 # backend_bases.NavigationToolbar2.toolitems = (
@@ -134,7 +134,7 @@ class Viewer:
 
         # Heat-map setting ---------
 
-        self.hm_sigma = 4
+        self.hm_sigma = 3
 
         self.hm_up_button_axes = plt.axes([0.585, 0.037, 0.02, 0.023])
         self.hm_up_button = Button(self.hm_up_button_axes, '↑')
@@ -209,7 +209,7 @@ class Viewer:
         self.hm_cm = get_default_cmap()
 
         self.marker_size = 0.007
-        self.hm_bins = 800
+        self.hm_bins = 400
 
         c = np.unique(self.coord, axis=0)
         c = np.round(c * (self.hm_bins - 1)).astype(int)
@@ -230,10 +230,11 @@ class Viewer:
         # VOLUME RENDERER PROCESS ---------------------------------------------------------------------------
 
         volume_render_process = mp.Process(
-            target=volumeRendererProcessLoop,
+            target=VolumeRenderer.startNewProcess,
             args=(
                 self.volume_render_input_queue,
-                self.volume_render_output_queue
+                self.volume_render_output_queue,
+                title
             )
         )
         volume_render_process.start()
@@ -244,7 +245,7 @@ class Viewer:
         # Start process loop --------------------------------------------------------------------------------
 
         debug_print("init() show")
-
+        
         try:
             plt.show()
         except KeyboardInterrupt:
@@ -545,6 +546,7 @@ class Viewer:
                 debug_print(f"volume_renderer_event() task: {task}")
 
                 if task == "exit":
+                    print("exit request!!")
                     break
                 elif len(task) > 10 and task[:10] == "iso_value_":
                     iso_value = round(float(task[10:]), 3)
