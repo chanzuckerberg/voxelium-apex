@@ -5,6 +5,9 @@ Module for visualizing 3D spectral heterogeneity analysis (SHA) training results
 """
 
 import sys
+import time
+
+import signal
 
 import numpy as np
 import argparse
@@ -247,9 +250,11 @@ class Viewer:
         debug_print("init() show")
         
         try:
+            self.hm_alive = True
             plt.show()
         except KeyboardInterrupt:
-            print("Exiting!")
+            print("Exiting...")
+        self.hm_alive = False
 
         debug_print("init() exit")
 
@@ -258,6 +263,13 @@ class Viewer:
         volume_render_process.join()
         volume_render_process.terminate()
         volume_render_event_thread.join()
+
+    @debug_decorator
+    def terminate_hm(self):
+        if self.hm_alive:
+            plt.close(self.fig_hm)
+            main_thread_id = threading.main_thread().ident
+            signal.pthread_kill(main_thread_id, signal.SIGINT)
 
     @debug_decorator
     def axis_change_event(self, event_ax):
@@ -546,7 +558,7 @@ class Viewer:
                 debug_print(f"volume_renderer_event() task: {task}")
 
                 if task == "exit":
-                    print("exit request!!")
+                    self.terminate_hm()
                     break
                 elif len(task) > 10 and task[:10] == "iso_value_":
                     iso_value = round(float(task[10:]), 3)
