@@ -63,11 +63,14 @@ class VolumeRenderer:
             self.volumes.append(numpy_volume_as_vtk_image_data(v))
 
         self.rock_ascend = True
-        self.iso_min = float(np.min(volumes[0]))
-        self.iso_max = float(np.max(volumes[0]))
-        self.iso_steps = float(np.std(volumes[0]) / 2.)
+
+        v = volumes[0]
+        s = float(np.sqrt(np.mean(np.square(v[v > 0]))))
+        self.iso_min = float(np.min(v))
+        self.iso_max = float(np.max(v))
+        self.iso_steps = s / 10
         if self.iso_value is None:
-            self.iso_value = float(np.mean(volumes[0]) * 4.) * 4.
+            self.iso_value = s
             self.output_queue.put(f"iso_value_{self.iso_value}")
 
     @debug_decorator
