@@ -292,9 +292,6 @@ def train(rank, args, ddp_args):
                 features = feature_extractor(
                     hv=hv, y=y_ft, wy=wy, wx=torch.ones_like(wy), groups=tomo_groups, s0=s0_)
 
-                if torch.any(torch.isnan(features)):
-                    print("NaN in feat 2", step)
-
                 if log_stats:
                     summary.add_scalar("Features/mean", features.mean())
                     summary.add_scalar("Features/std", features.std())
@@ -312,17 +309,12 @@ def train(rank, args, ddp_args):
                 z, _ = rec.z_encode(features)
                 s = rec.s_encode(z)
 
-                if torch.any(torch.isnan(z)):
-                    print("NaN in Z", step)
-
                 hvc.set_metadata('z', particle_idx, z[tomo_groups] if do_tomo else z)
                 hvc.set_metadata('s', particle_idx, s[tomo_groups] if do_tomo else s)
 
                 if finalize:
                     if args.relax_iter > 0:
                         s_relaxed = s.detach()
-
-                        from torch.optim import LBFGS
 
                         # Clone z without detaching so it stays in the computation graph
                         z_relaxed = z.detach().requires_grad_(True)
