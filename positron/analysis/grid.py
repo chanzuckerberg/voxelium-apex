@@ -73,7 +73,10 @@ def main(args):
     grid, voxel_size, global_origin = load_mrc_(args.input)  # grid: (Z,Y,X) float32
 
     if args.stats:
+        s = grid.shape
         print(f"Statistics for {args.input}")
+        print(f"Shape (voxel): {s[0]} x {s[1]} x {s[2]}")
+        print(f"Shape (Å): {s[0] * round(voxel_size, 2)} x {s[1] * round(voxel_size, 2)} x {s[2] * round(voxel_size, 2)}")
         print(f"Pixel size (Å/voxel): {voxel_size}")
         print(f"Origin: {global_origin.tolist()}")
         print(f"Mean: {float(grid.mean())}")
