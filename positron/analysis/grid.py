@@ -88,7 +88,33 @@ def main(args):
     modifier = False
 
     # ---------- Cropping (Z,Y,X) with Python slicing semantics ----------
-    if args.crop is not None:
+    # ---------- Cropping ----------
+    if args.crop is not None and args.crop_to_shape is not None:
+        raise ValueError("Use either --crop or --crop_to_shape, not both.")
+
+    if args.crop_to_shape is not None:
+        # Center-crop to the requested shape (Z, Y, X), clamped to the volume size
+        tz, ty, tx = args.crop_to_shape
+        if tz <= 0 or ty <= 0 or tx <= 0:
+            raise ValueError("--crop_to_shape values must be positive integers (Z Y X)")
+
+        nz, ny, nx = grid.shape
+        tz = min(tz, nz); ty = min(ty, ny); tx = min(tx, nx)
+
+        z0 = (nz - tz) // 2; z1 = z0 + tz
+        y0 = (ny - ty) // 2; y1 = y0 + ty
+        x0 = (nx - tx) // 2; x1 = x0 + tx
+
+        print(f"Center-cropping to Z[{z0}:{z1}] Y[{y0}:{y1}] X[{x0}:{x1}] "
+            f"(target shape {tz}×{ty}×{tx}, input {nz}×{ny}×{nx})")
+        grid = grid[z0:z1, y0:y1, x0:x1].contiguous()
+
+        print(f"Output shape (voxel): {grid.shape[0]} x {grid.shape[1]} x {grid.shape[2]}")
+        ang = round(float(voxel_size), 2)
+        print(f"Output shape (Å): {grid.shape[0] * ang} x {grid.shape[1] * ang} x {grid.shape[2] * ang}")
+        modifier = True
+
+    elif args.crop is not None:
         if len(args.crop) != 6:
             raise ValueError("--crop expects 6 integers: z0 z1 y0 y1 x0 x1 (end-exclusive)")
         z0, z1, y0, y1, x0, x1 = args.crop
@@ -100,6 +126,9 @@ def main(args):
             raise ValueError("Invalid crop ranges; ensure start < end for each axis.")
         print(f"Cropping to Z[{z0}:{z1}] Y[{y0}:{y1}] X[{x0}:{x1}]")
         grid = grid[z0:z1, y0:y1, x0:x1].contiguous()
+        print(f"Output shape (voxel): {grid.shape[0]} x {grid.shape[1]} x {grid.shape[2]}")
+        ang = round(float(voxel_size), 2)
+        print(f"Output shape (Å): {grid.shape[0] * ang} x {grid.shape[1] * ang} x {grid.shape[2] * ang}")
         modifier = True
 
     # ---------- Arithmetic ops ----------
@@ -197,6 +226,13 @@ def append_args(parser):
         nargs=6,
         metavar=("Z0", "Z1", "Y0", "Y1", "X0", "X1"),
         help="Crop volume using end-exclusive indices (Z,Y,X)."
+    )
+    parser.add_argument(
+        "--crop_to_shape",
+        type=int,
+        nargs=3,
+        metavar=("Z", "Y", "X"),
+        help="Crop volume to center on shape (Z,Y,X)."
     )
 
     # Frequency domain filters using Å cutoffs (common in cryo-EM)
