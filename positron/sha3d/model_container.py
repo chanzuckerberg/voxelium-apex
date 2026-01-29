@@ -68,7 +68,6 @@ class ModelContainer(nn.Module):
             voxel_size,
             circular_mask_radius_ang,
             circular_mask_thickness_ang,
-            norm_network=False,
             z_encoder_dims=None,
             s_encoder_dims=None,
             train_epoch=0,
@@ -142,7 +141,7 @@ class ModelContainer(nn.Module):
             output_dim=z_size * 2,
             resid_dim=128,
             resid_count=4,
-            normalize_fn=None
+            normalize_fn=torch.nn.BatchNorm1d
         )
 
         self.s_encoder = Encoder(
@@ -150,17 +149,8 @@ class ModelContainer(nn.Module):
             output_dim=s_size,
             resid_dim=128,
             resid_count=4,
-            normalize_fn=None
+            normalize_fn=torch.nn.BatchNorm1d
         )
-
-        self.norm_network = None
-        if norm_network:
-            self.norm_network = Encoder(
-                input_dim=feature_size,
-                output_dim=1,
-                resid_dim=64,
-                resid_count=4,
-            )
 
         self.feature_size = feature_size
         self.z_encoder_dims = z_encoder_dims
@@ -213,9 +203,6 @@ class ModelContainer(nn.Module):
             else:
                 s[:, 0] = self.s0_ema
 
-        if self.norm_network is not None and features is not None:
-            s = s * (torch.sigmoid(self.norm_network(features)) * 0.2 + 0.9)
-
         return s
 
     def init_optimizers(self):
@@ -230,15 +217,11 @@ class ModelContainer(nn.Module):
             {"params": self.z_encoder.parameters(), "weight_decay": wd},
             {"params": self.s_encoder.parameters(), "weight_decay": wd},
         ]
-        if self.norm_network is not None:
-            params.append({"params": self.norm_network.parameters(), "weight_decay": wd})
         self.adam_opt = torch.optim.AdamW(params)
 
     def clip_grad(self, clip):
         torch.nn.utils.clip_grad_norm_(self.z_encoder.parameters(), clip)
         torch.nn.utils.clip_grad_norm_(self.s_encoder.parameters(), clip)
-        if self.norm_network is not None:
-            torch.nn.utils.clip_grad_norm_(self.norm_network.parameters(), clip)
 
     def zero_grad(self, set_to_none: bool = True) -> None:
         self.adam_opt.zero_grad(set_to_none)
@@ -289,7 +272,6 @@ class ModelContainer(nn.Module):
 
             "z_encoder": self.z_encoder.state_dict(),
             "s_encoder": self.s_encoder.state_dict(),
-            "norm_network": None if self.norm_network is None else self.norm_network.state_dict(),
 
             "adam_opt": self.adam_opt.state_dict(),
             "decoder": self.decoder.state_dict(),
@@ -328,7 +310,6 @@ class ModelContainer(nn.Module):
                 voxel_size=state_dict["voxel_size"],
                 circular_mask_radius_ang=state_dict["circular_mask_radius_ang"],
                 circular_mask_thickness_ang=state_dict["circular_mask_thickness_ang"],
-                norm_network=state_dict["norm_network"] is not None if "norm_network" in state_dict else False,
                 z_encoder_dims=state_dict["z_encoder_dims"],
                 s_encoder_dims=state_dict["s_encoder_dims"],
                 train_epoch=state_dict["train_epoch"],
@@ -346,9 +327,6 @@ class ModelContainer(nn.Module):
             container.decoder.load_state_dict(state_dict["decoder"])
 
             container.stats = SpectralStatistics.load_from_state_dict(state_dict["spectral_stats"])
-
-            if container.norm_network is not None:
-                container.norm_network.load_state_dict(state_dict["norm_network"])
 
             if not skip_optimizers:
                 container.init_optimizers()

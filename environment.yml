@@ -1,4 +1,4 @@
-name: positron
+name: voxelium-apex
 channels:
   - defaults
 dependencies:
@@ -17,8 +17,8 @@ dependencies:
       - tensorboard
       - torch==2.2.*
       - torchvision
-      - tqdm
       - starfile
-      - umap-learn
+      - alive_progress
       - imageio
       - msgpack
+      - voxelium

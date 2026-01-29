@@ -3,6 +3,7 @@
 """
 Module for managing pytorch dataset of particles.
 """
+import sys
 
 import os
 import shutil
@@ -17,7 +18,6 @@ from collections import defaultdict
 
 import torch
 from torch.utils.data import Dataset
-import tqdm
 
 from positron.base import rescale_real
 from positron.base.ctf import ContrastTransferFunction
@@ -25,6 +25,8 @@ from positron.base.ctf import ContrastTransferFunction
 from collections import namedtuple
 from multiprocessing import Process, Value, Array
 
+from alive_progress import alive_bar
+from contextlib import nullcontext
 
 class SingleParticleDataset(Dataset):
     def __init__(self) -> None:
@@ -235,42 +237,50 @@ class SingleParticleDataset(Dataset):
     def preload_images(self, verbose=True):
         self.part_preloaded_image = [None for _ in range(self.nr_parts)]
         part_index_list = np.arange(self.nr_parts)
-        unique_file_idx, unique_reverse = np.unique(self.part_image_file_path_idx, return_inverse=True)
+        unique_file_idx, unique_reverse = np.unique(
+            self.part_image_file_path_idx, return_inverse=True
+        )
 
-        pbar = None
-        if verbose:
-            pbar = tqdm.tqdm(total=self.nr_parts, smoothing=0.1)
+        cm = (
+            alive_bar(self.nr_parts, title="Preloading images", file=sys.__stderr__)
+            if verbose
+            else nullcontext()
+        )
 
-        for i in range(len(unique_file_idx)):
-            file_idx = unique_file_idx[i]
-            path = self.image_file_paths[file_idx]
-            with mrcfile.mmap(path, 'r') as mrc:
-                # Mask out particles with no images in this file stack
-                this_file_mask = unique_reverse == i
-                this_file_stack_indices = self.part_stack_idx[this_file_mask]
-                this_file_index_list = part_index_list[this_file_mask]  # Particles indices with images in this file
-                
-                # Since this_file_stack_indices indexes into the mmap object, we should make sure
-                # it is sorted, so we minimize disk accesses
-                stack_indices_argsort = np.argsort(this_file_stack_indices)
-                for j in range(len(this_file_stack_indices)):
-                    k = stack_indices_argsort[j]
-                    idx = this_file_index_list[k]
-                    # Take slices of images for this data set
+        with cm as bar:
+            for i in range(len(unique_file_idx)):
+                file_idx = unique_file_idx[i]
+                path = self.image_file_paths[file_idx]
 
-                    if len(mrc.data.shape) == 2:
-                        self.part_preloaded_image[idx] = mrc.data.astype(self.dtype).copy()
-                    elif len(mrc.data.shape) == 3:
-                        self.part_preloaded_image[idx] = \
-                            mrc.data[this_file_stack_indices[k]].astype(self.dtype).copy()
-                    else:
-                        raise RuntimeError(f"Unsupported data dimensionality (dim={len(mrc.data.shape)}) "
-                                           f"in file {path}.")
-                    if verbose:
-                        pbar.update()
+                with mrcfile.mmap(path, 'r') as mrc:
+                    this_file_mask = unique_reverse == i
+                    this_file_stack_indices = self.part_stack_idx[this_file_mask]
+                    this_file_index_list = part_index_list[this_file_mask]
 
-        if verbose:
-            pbar.close()
+                    stack_indices_argsort = np.argsort(this_file_stack_indices)
+
+                    for j in range(len(this_file_stack_indices)):
+                        k = stack_indices_argsort[j]
+                        idx = this_file_index_list[k]
+
+                        if len(mrc.data.shape) == 2:
+                            self.part_preloaded_image[idx] = (
+                                mrc.data.astype(self.dtype).copy()
+                            )
+                        elif len(mrc.data.shape) == 3:
+                            self.part_preloaded_image[idx] = (
+                                mrc.data[this_file_stack_indices[k]]
+                                .astype(self.dtype)
+                                .copy()
+                            )
+                        else:
+                            raise RuntimeError(
+                                f"Unsupported data dimensionality "
+                                f"(dim={len(mrc.data.shape)}) in file {path}."
+                            )
+
+                        if bar is not None:
+                            bar()
 
         self.data_preloaded = True
         self.data_caching = False

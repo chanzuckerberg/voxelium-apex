@@ -18,8 +18,8 @@ class StructureDecoder(torch.nn.Module):
 
         self.caches = {}
 
-        from positron.torch_extensions.reconstruction_layer_3d import ReconstructionLayer3D
-        self.projector = ReconstructionLayer3D(
+        from voxelium.torch_extensions.sparse3d import ReconstructionLayer
+        self.projector = ReconstructionLayer(
             size=grid3d_size,
             input_size=s_size,
             do_bias=False

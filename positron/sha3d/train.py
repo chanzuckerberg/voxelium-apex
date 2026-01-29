@@ -550,28 +550,29 @@ def train(rank, args, ddp_args):
                             summary.add_scalar(f"Learning Rates/Encoders", encoder_lr)
                             summary.add_scalar(f"Learning Rates/Decoder", decoder_lr)
 
-                        subset_size = torch.sum(~train_mask) * 2
-                        if not final_train_epochs and this_batch_size >= subset_size:
-                            with torch.no_grad():
-                                train_mask_ = train_mask[:subset_size]
-                                s_ = s[:subset_size].detach()
-                                ctf_ = hv['ctfs_'][:subset_size, ..., None]
-                                y_ = y_ft[:subset_size]
+                        with torch.no_grad():
+                            subset_size = torch.sum(~train_mask) * 2
+                            if not final_train_epochs and this_batch_size >= subset_size:
+                                with torch.no_grad():
+                                    train_mask_ = train_mask[:subset_size]
+                                    s_ = s[:subset_size].detach()
+                                    ctf_ = hv['ctfs_'][:subset_size, ..., None]
+                                    y_ = y_ft[:subset_size]
 
-                                rot = hv["rot_matrices"][:subset_size]
-                                shifts = hv["shifts_resid"][:subset_size]
+                                    rot = hv["rot_matrices"][:subset_size]
+                                    shifts = hv["shifts_resid"][:subset_size]
 
-                                x_ft = rec.decoder(s=s_, max_r=image_max_r, rot_matrices=rot)
-                                x_ft_shift = fourier_shift_2d(x_ft, shifts)
-                                x_ = x_ft_shift * ctf_
+                                    x_ft = rec.decoder(s=s_, max_r=image_max_r, rot_matrices=rot)
+                                    x_ft_shift = fourier_shift_2d(x_ft, shifts)
+                                    x_ = x_ft_shift * ctf_
 
-                            rec.stats.update(
-                                x=x_, y=y_, ctf2=avg_ctf2,
-                                train_mask=train_mask_,
-                                valid_mask=~train_mask_,
-                                mse=square_error_valid.mean(0),
-                                momentum=0.99
-                            )
+                                rec.stats.update(
+                                    x=x_, y=y_, ctf2=avg_ctf2,
+                                    train_mask=train_mask_,
+                                    valid_mask=~train_mask_,
+                                    mse=square_error_valid.mean(0),
+                                    momentum=0.99
+                                )
 
                         if log_stats:
                             summary.write_stats(x_ft, y_ft, hv["amp"], hv["amp_ctf"])
@@ -675,8 +676,6 @@ def main(args):
 
 
 if __name__ == "__main__":
-    sys.argv += ["/hpc/projects/group.czii/dari.kimanius/josh_ribo/positron_logdirs/test/", "-i", "/hpc/projects/group.czii/dari.kimanius/josh_ribo/stack_10A.star", "--tomo", "--gpu", "0"]
-
     parser = argparse.ArgumentParser(
         prog="Train a spectral heterogeneity analysis (SHA) 3D model.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
