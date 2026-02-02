@@ -4,7 +4,7 @@ import os
 import torch
 import numpy as np
 
-from positron.base import save_mrc, load_mrc, get_bounding_box, gaussian_blur
+from voxelium import save_mrc, load_mrc, get_bounding_box, gaussian_blur
 from positron.sha3d.summary import Summary
 from positron.sha3d.train_utils import setup_device
 

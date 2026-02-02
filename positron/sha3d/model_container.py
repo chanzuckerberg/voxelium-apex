@@ -8,12 +8,10 @@ import torch.nn as nn
 
 from typing import List, TypeVar, Dict, Union
 
-from positron.base import get_activation_function_by_name, ResidBlock
+from voxelium import ModelContainer, spectral_index_from_resolution, size_to_maxr, ResidBlock
+
 from .spectral_statistics import SpectralStatistics
 from .train_utils import parse_bounds_str
-
-from ..base import ModelContainer, spectral_index_from_resolution
-from ..base.explicit_grid_utils import size_to_maxr
 from .base_optim import BaseOptimizer
 from .structure_decoder import StructureDecoder
 

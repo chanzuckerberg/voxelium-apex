@@ -8,11 +8,11 @@ import torch
 from typing import List, TypeVar, Dict, Union
 
 import numpy as np
-from positron.base import grid_spectral_average, spectrum_to_grid_mean
+from voxelium import grid_spectral_average, spectrum_to_grid_mean, size_to_maxr
+
 
 from positron.sha3d.cache import Cache
 
-from positron.base.explicit_grid_utils import size_to_maxr
 from .train_utils import smoothen_spectra
 
 Tensor = TypeVar('torch.tensor')

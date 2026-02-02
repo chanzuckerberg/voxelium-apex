@@ -3,7 +3,7 @@ from typing import Dict
 
 import numpy as np
 import torch
-from positron.base import ModelContainer
+from voxelium import ModelContainer
 
 
 class RetentionClassifier(torch.nn.Module):

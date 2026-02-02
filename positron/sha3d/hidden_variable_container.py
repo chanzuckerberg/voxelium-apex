@@ -10,18 +10,14 @@ import sys
 import numpy as np
 from typing import Dict, List, TypeVar, Tuple, Any
 
-from positron.base.explicit_grid_utils import size_to_maxr
-
-from positron.base.torch_utils import optimizer_set_learning_rate
-from positron.sha3d.cache import Cache
-
-Tensor = TypeVar('torch.tensor')
-
 import torch
 import torch.nn.functional as F
 
-from positron.base import euler_to_matrix, ContrastTransferFunction
-from positron.base.spectral import grid_spectral_average, spectra_to_grid, dt_symmetrize
+from voxelium.base import size_to_maxr, euler_to_matrix, ContrastTransferFunction, grid_spectral_average, spectra_to_grid
+
+from positron.sha3d.cache import Cache
+
+Tensor = TypeVar('torch.tensor')
 
 VARIANCE_SPECTRA_OPT_LR = [5e-1, 1e-1]
 
@@ -113,7 +109,6 @@ class HiddenVariableContainer:
     def set_device(self, device):
         if self.do_ctf:
             for og in self.optics_groups:
-                og['ctf'].to(device)
                 if self.data_stats_established:
                     og['data_amp'] = og['data_amp'].to(device)
                     og['data_amp_ctf'] = og['data_amp_ctf'].to(device)
@@ -261,11 +256,13 @@ class HiddenVariableContainer:
                 mask = part_og_idx == i
                 if torch.any(mask):
                     ctfs[mask] = self.optics_groups[i]['ctf'](
-                        self.image_size,
-                        self.optics_groups[i]['pixel_size'],
-                        defocus_a[mask],
-                        defocus_b[mask],
-                        angle[mask]
+                        shape=(self.image_size, self.image_size),
+                        u=defocus_a[mask],
+                        v=defocus_b[mask],
+                        angle=angle[mask],
+                        pixel_size=self.optics_groups[i]['pixel_size'],
+                        rfft=False,
+                        center=True
                     )
         else:
             ctfs = torch.ones([batch_size, self.image_size, self.image_size]).to(self.device)

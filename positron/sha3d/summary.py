@@ -12,10 +12,9 @@ import torch
 import torch.nn.functional as F
 
 import numpy as np
-from positron.base import dt_desymmetrize, idft, rescale_fourier, smooth_spherical_mask, load_mrc
+from voxelium import size_to_maxr, maxr_to_size, idft, rescale_fourier, smooth_spherical_mask, load_mrc
 
 from positron.sha3d.cache import Cache
-from positron.base.explicit_grid_utils import size_to_maxr, maxr_to_size
 from positron.sha3d.hidden_variable_container import HiddenVariableContainer
 from positron.sha3d.train_utils import load_modules_from_logdir, save_modules_to_logdir, load_module
 

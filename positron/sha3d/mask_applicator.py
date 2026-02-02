@@ -5,10 +5,8 @@ import warnings
 import numpy as np
 import torch
 import torch.nn.functional as F
-from positron.base.explicit_grid_utils import size_to_maxr
+from voxelium import size_to_maxr, dft, fast_gaussian_filter, idft
 from positron.sha3d.cache import Cache
-
-from positron.base import dft, make_gaussian_kernel, fast_gaussian_filter, idft
 
 
 @torch.no_grad()

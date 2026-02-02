@@ -9,7 +9,7 @@ from typing import List, TypeVar, Dict, Tuple
 import numpy as np
 import torch
 import torch.nn.functional as F
-from positron.base import fourier_shift_2d
+from voxelium.base import fourier_shift_2d
 from positron.sha3d.cache import Cache
 
 import matplotlib.pyplot as plt

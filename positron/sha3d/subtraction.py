@@ -4,21 +4,13 @@
 """
 import os
 import pickle
-from collections import OrderedDict
 
 import torch
 
-from typing import List, TypeVar, Dict, Union
-
 import numpy as np
-from positron.base import grid_spectral_sum, grid_spectral_average, fourier_shift_2d, dt_desymmetrize, idft, \
-    integer_shift_2d, save_mrc
+from voxelium import fourier_shift_2d, dt_desymmetrize, idft, integer_shift_2d, save_mrc
 
-from positron.sha3d.cache import Cache
-
-from positron.base.explicit_grid_utils import size_to_maxr
 from .mask_applicator import apply_solvent_mask
-from .train_utils import smoothen_spectra, zero_fill_number
 
 
 class SubtractionHelper:

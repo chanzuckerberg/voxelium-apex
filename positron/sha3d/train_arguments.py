@@ -1,4 +1,4 @@
-from positron.base.args import range_limited_float_type, range_limited_int_type
+from voxelium.base.args import range_limited_float_type, range_limited_int_type
 
 
 def append_train_arguments(parser):

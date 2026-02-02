@@ -3,7 +3,7 @@ import time
 import torch
 from torch import nn
 
-from positron.base.torch_utils import pca_dim_reduction
+from voxelium import pca_dim_reduction
 
 
 @torch.no_grad()

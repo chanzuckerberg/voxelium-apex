@@ -5,8 +5,7 @@ Model for the Structure Decoder
 """
 
 import torch
-from positron.base.explicit_grid_utils import make_grid2d, make_grid3d, size_to_maxr, maxr_to_size
-from ..base import spectra_to_grid
+from voxelium import make_explicit_grid2d, make_explicit_grid3d , size_to_maxr, maxr_to_size, spectra_to_grid
 
 
 class StructureDecoder(torch.nn.Module):
@@ -35,7 +34,7 @@ class StructureDecoder(torch.nn.Module):
         if hashable not in self.caches:
             device = self.projector.weight.device
             if is_3d:
-                coord, mask = make_grid3d(size=maxr_to_size(max_r) + 1)
+                coord, mask = make_explicit_grid3d(size=maxr_to_size(max_r) + 1)
                 radius = torch.sqrt(torch.sum(torch.square(coord), -1))
                 spectral_idx = torch.floor(radius).long()
                 spectral_idx = spectral_idx[mask]
@@ -47,7 +46,7 @@ class StructureDecoder(torch.nn.Module):
                     nc_idx
                 ]
             else:
-                coord, mask = make_grid2d(size=self.grid3d_size, max_r=max_r)
+                coord, mask = make_explicit_grid2d(size=self.grid3d_size, max_r=max_r)
                 radius = torch.sqrt(torch.sum(torch.square(coord), -1))
                 spectral_idx = torch.floor(radius).long()
                 nc_idx = torch.where(spectral_idx == 0)[0][0]

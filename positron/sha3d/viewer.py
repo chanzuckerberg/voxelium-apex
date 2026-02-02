@@ -22,10 +22,8 @@ import torch
 
 import multiprocessing as mp
 
-from positron.base import get_spectral_indices, spectra_to_grid, dft, idft
-from positron.base.grid import load_mrc, save_mrc, gaussian_blur
-from positron.base.plot import get_default_cmap
-from positron.base.torch_utils import pca_dim_reduction
+from voxelium import get_spectral_indices, spectra_to_grid, dft, idft, save_mrc, gaussian_blur, get_default_cmap, pca_dim_reduction
+
 from positron.sha3d.summary import Summary
 from positron.sha3d.train_utils import setup_device
 from positron.sha3d.renderer import VolumeRenderer

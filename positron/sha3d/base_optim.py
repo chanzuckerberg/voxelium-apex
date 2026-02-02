@@ -16,7 +16,8 @@
 import torch
 from torch.optim.optimizer import Optimizer
 
-from positron.base import spectra_to_grid, grid_spectral_average
+from voxelium import spectra_to_grid, grid_spectral_average
+
 from positron.sha3d.train_utils import smoothen_spectra
 
 
