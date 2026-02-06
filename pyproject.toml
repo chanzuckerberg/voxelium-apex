@@ -56,7 +56,7 @@ testing = [
 ]
 
 [project.scripts]
-positron = "voxelium_apex.__main__:main"
+vxm-apex = "voxelium_apex.__main__:main"
 
 [tool.setuptools]
 packages = { find = {} }

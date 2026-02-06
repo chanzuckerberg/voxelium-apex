@@ -2,12 +2,10 @@
 
 from __future__ import division, print_function, absolute_import
 
-import sys
 import os
 import argparse
 import numpy as np
 import torch
-import torch.nn.functional as F
 
 from voxelium import load_mrc, save_mrc, fast_gaussian_filter
 

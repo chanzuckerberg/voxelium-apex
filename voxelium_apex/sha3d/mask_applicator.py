@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from voxelium import size_to_maxr, dft, fast_gaussian_filter, idft
-from positron.sha3d.cache import Cache
+from voxelium_apex.sha3d.cache import Cache
 
 
 @torch.no_grad()

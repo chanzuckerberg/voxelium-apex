@@ -7,21 +7,23 @@ import argparse
 
 
 def main():
-    import voxelium_apex as vxa
+    import voxelium_apex
+    from voxelium_apex.analysis import spectral, star_file_subset
+    from voxelium_apex.sha3d import train, summary, viewer, job_submit 
 
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--version", action="version", version=f"voxelium_apex {vxa.__version__}")
+    parser.add_argument("--version", action="version", version=f"voxelium_apex {voxelium_apex.__version__}")
 
     modules = {
-        "analysis_spectral": vxa.analysis.spectral,
-        "analysis_star_subset": vxa.analysis.star_file_subset,
-        "SHA3D": vxa.sha3d.train,
-        "SHA3D_summary": vxa.sha3d.summary,
-        "SHA3D_viewer": vxa.sha3d.viewer,
-        "SHA3D_submit": vxa.sha3d.job_submit,
+        "analysis_spectral": spectral,
+        "analysis_star_subset": star_file_subset,
+        "SHA3D": train,
+        "SHA3D_summary": summary,
+        "SHA3D_viewer": viewer,
+        "SHA3D_submit": job_submit,
     }
 
     subparsers = parser.add_subparsers(

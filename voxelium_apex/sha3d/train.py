@@ -12,7 +12,7 @@ from datetime import datetime
 import torch
 from torch.utils.data import DataLoader
 
-import voxelium as vx
+import voxelium as vxm
 from voxelium.base.io_logger import IOLogger
 from voxelium.base.single_particle_validation_sampler import SingleParticleValidationSampler
 from voxelium.base.subtomo_validation_sampler import SubtomoValidationSampler
@@ -113,7 +113,7 @@ def train(rank, args, ddp_args):
 
     solvent_mask = None
     if args.solvent_mask is not None:
-        solvent_mask, _, _ = vx.load_mrc(args.solvent_mask)
+        solvent_mask, _, _ = vxm.load_mrc(args.solvent_mask)
         solvent_mask = torch.Tensor(solvent_mask.copy()).to(device)
 
         if not torch.any((0. < solvent_mask) & (solvent_mask < 1.)):
@@ -124,7 +124,7 @@ def train(rank, args, ddp_args):
     roi_mask = None
     do_roi = False
     if args.roi_mask is not None:
-        roi_mask, _, _ = vx.load_mrc(args.roi_mask)
+        roi_mask, _, _ = vxm.load_mrc(args.roi_mask)
         roi_mask = torch.Tensor(roi_mask.copy()).to(device)
 
         if not torch.any((0. < roi_mask) & (roi_mask < 1.)):
@@ -134,7 +134,7 @@ def train(rank, args, ddp_args):
 
     subtract_mask = None
     if args.subtract_mask is not None:
-        subtract_mask, _, _ = vx.load_mrc(args.roi_mask)
+        subtract_mask, _, _ = vxm.load_mrc(args.roi_mask)
         subtract_mask = torch.Tensor(subtract_mask.copy()).to(device)
 
         if not torch.any((0. < subtract_mask) & (subtract_mask < 1.)):
@@ -329,7 +329,7 @@ def train(rank, args, ddp_args):
                                 s_ = s_relaxed[tomo_groups] if do_tomo else s_relaxed
 
                                 x_ft = rec.decoder(s=s_, max_r=image_max_r, rot_matrices=hv["rot_matrices"])
-                                x_ft_shift = vx.fourier_shift_2d(x_ft, hv["shifts_resid"])
+                                x_ft_shift = vxm.fourier_shift_2d(x_ft, hv["shifts_resid"])
                                 x = x_ft_shift * hv['ctfs_'][..., None]
 
                                 x_ = torch.view_as_complex(x)
@@ -414,7 +414,7 @@ def train(rank, args, ddp_args):
 
                     x_ft = rec.decoder(s=s, max_r=image_max_r, rot_matrices=hv["rot_matrices"])
 
-                    x_ft_shift = vx.fourier_shift_2d(x_ft, hv["shifts_resid"])
+                    x_ft_shift = vxm.fourier_shift_2d(x_ft, hv["shifts_resid"])
                     x = x_ft_shift * hv['ctfs_'][..., None]
 
                     spectral_mask = Cache.get_spectral_mask(
@@ -558,7 +558,7 @@ def train(rank, args, ddp_args):
                                     shifts = hv["shifts_resid"][:subset_size]
 
                                     x_ft = rec.decoder(s=s_, max_r=image_max_r, rot_matrices=rot)
-                                    x_ft_shift = vx.fourier_shift_2d(x_ft, shifts)
+                                    x_ft_shift = vxm.fourier_shift_2d(x_ft, shifts)
                                     x_ = x_ft_shift * ctf_
 
                                 rec.stats.update(
@@ -578,9 +578,9 @@ def train(rank, args, ddp_args):
 
                             reg = rec.stats.get_spectral_summary()
                             for key in reg:
-                                summary.add_figure(key, vx.make_series_line_fig(reg[key]))
+                                summary.add_figure(key, vxm.make_series_line_fig(reg[key]))
 
-                            summary.add_figure("basis powers", vx.make_series_line_fig(rec.decoder_opt.get_stats()))
+                            summary.add_figure("basis powers", vxm.make_series_line_fig(rec.decoder_opt.get_stats()))
 
                     rec.train_step += 1
 
@@ -627,7 +627,7 @@ def train(rank, args, ddp_args):
 
     if z_relax_losses_count > 0:
         z_relax_losses = z_relax_losses / z_relax_losses_count
-        summary.add_figure("Relax Loss", vx.make_line_fig(np.arange(len(z_relax_losses)), z_relax_losses))
+        summary.add_figure("Relax Loss", vxm.make_line_fig(np.arange(len(z_relax_losses)), z_relax_losses))
 
     dac.save_to_logdir(log_dir)
 

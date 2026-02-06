@@ -3,18 +3,14 @@
 """
 Test module for a training VAE
 """
-import sys
+import torch
 from typing import List, TypeVar, Union, Tuple, Any
 
 import numpy as np
-import torch
-
 import voxelium as vxm
 
 Tensor = TypeVar('torch.tensor')
 
-import torch
-from typing import Tuple, Union
 
 # Assume get_freq is defined as follows:
 def get_freq(

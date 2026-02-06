@@ -15,7 +15,7 @@ import torch.nn.functional as F
 
 from voxelium.base import size_to_maxr, euler_to_matrix, ContrastTransferFunction, grid_spectral_average, spectra_to_grid
 
-from positron.sha3d.cache import Cache
+from voxelium_apex.sha3d.cache import Cache
 
 Tensor = TypeVar('torch.tensor')
 

@@ -6,12 +6,8 @@ Test module for a training VAE
 import os
 import sys
 from typing import List, TypeVar, Any, Union
-
-import numpy as np
 import torch
 import torch.distributed as dist
-import torch.nn as nn
-import torch.optim as optim
 import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 

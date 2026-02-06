@@ -11,7 +11,7 @@ import numpy as np
 from voxelium import grid_spectral_average, spectrum_to_grid_mean, size_to_maxr
 
 
-from positron.sha3d.cache import Cache
+from voxelium_apex.sha3d.cache import Cache
 
 from .train_utils import smoothen_spectra
 

@@ -2,22 +2,10 @@
 
 from __future__ import division, print_function, absolute_import
 
-import sys
-import os
-
 import argparse
-import glob
-import pickle
-import time
-
-import numpy as np
-
-import matplotlib
-import matplotlib.pylab as plt
 import torch
 
-from voxelium import load_mrc, spherical_mask, spectral_resolution, get_fsc_real, get_power_real, \
-    spectral_index_from_resolution, idft, local_correlation, save_mrc
+from voxelium import load_mrc, spherical_mask, local_correlation, save_mrc
 
 
 def load_mrc_(filename):
