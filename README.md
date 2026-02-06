@@ -10,17 +10,6 @@ Once you have that ready you can just run:
 ```pip3 install .```
 
 
-### Visualization-Only Installation
-If you only need to visualize reconstruction results (e.g. on you local computer) you can skip the building of the torch extensions. 
-These are only needed on the computational nodes. First activate the new Conda environment:
-
-You can now install the voxelium-apex library from inside the project directory by running:
-
-```POSITRON_SKIP_EXT=TRUE pip3 install .```
-
-In the above, `POSITRON_SKIP_EXT` will skip installation of the torch extensions.
-
-
 ## 3D Spectral Heterogeneity Analysis (SHA)
 Run `vxm-apex -h` to see a list of modules.
 To run the analysis, the sha3D module can be run as follows:
