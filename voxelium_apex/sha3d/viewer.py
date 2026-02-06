@@ -3,10 +3,6 @@
 """
 Module for visualizing 3D spectral heterogeneity analysis (SHA) training results or summaries.
 """
-
-import sys
-import time
-
 import signal
 
 import numpy as np
@@ -22,11 +18,10 @@ import torch
 
 import multiprocessing as mp
 
-from voxelium import get_spectral_indices, spectra_to_grid, dft, idft, save_mrc, gaussian_blur, get_default_cmap, pca_dim_reduction
-
-from positron.sha3d.summary import Summary
-from positron.sha3d.train_utils import setup_device
-from positron.sha3d.renderer import VolumeRenderer
+import voxelium as vx
+from voxelium_apex.sha3d.summary import Summary
+from voxelium_apex.sha3d.train_utils import setup_device
+from voxelium_apex.sha3d.renderer import VolumeRenderer
 
 # from matplotlib import backend_bases
 # backend_bases.NavigationToolbar2.toolitems = (
@@ -86,7 +81,7 @@ class Viewer:
 
         self.ft_shape = list(summary.basis.shape[1:])
         self.ft_shape[-1] = self.ft_shape[-1] // 2 + 1
-        self.spectral_indices = get_spectral_indices(self.ft_shape, device=self.device, center=False)
+        self.spectral_indices = vx.get_spectral_indices(self.ft_shape, device=self.device, center=False)
 
         self.voxel_size = 1
         if "voxel_size" in summary.metadata:
@@ -94,7 +89,7 @@ class Viewer:
 
         self.ref_basis_df = torch.zeros([summary.basis.shape[0]] + self.ft_shape, device="cpu", dtype=torch.complex64)
         for i in range(summary.basis.shape[0]):
-            self.ref_basis_df[i] = dft(summary.basis[i].to("cpu"), real_in=True, center=False)
+            self.ref_basis_df[i] = vx.dft(summary.basis[i].to("cpu"), real_in=True, center=False)
 
         # LATENT VISUALIZATION -------------------------------------------------------------------------------
 
@@ -207,7 +202,7 @@ class Viewer:
 
         # MAKE HEAT MAP -------------------------------------------------------------------------------------
 
-        self.hm_cm = get_default_cmap()
+        self.hm_cm = vx.get_default_cmap()
 
         self.marker_size = 0.007
         self.hm_bins = 400
@@ -381,7 +376,7 @@ class Viewer:
         for i, v in enumerate(self.volumes):
             path = f"particle_id_{str(self.selected_ids[i])}.mrc"
             print(f" {path}")
-            save_mrc(v, path)
+            vx.save_mrc(v, path)
 
     @debug_decorator
     def save_volume_images(self, _=None):
@@ -394,7 +389,7 @@ class Viewer:
             sharp = self.hm_sharp
         else:
             sharp = 1 - (self.hm_sharp + 1) ** (-self.hm_contrast)
-        blur = gaussian_blur(sharp, self.hm_sigma)
+        blur = vx.gaussian_blur(sharp, self.hm_sigma)
 
         self.ax_hm.imshow(blur, cmap=self.hm_cm, extent=(0, 1, 1, 0))
 
@@ -415,11 +410,11 @@ class Viewer:
         idx = torch.linspace(0, 2, self.ft_shape[-1] * 2, device=self.device)
         res2 = torch.square(idx / self.voxel_size)
         profile = torch.exp(-self.bfactor / 4. * res2)
-        grid = spectra_to_grid(profile, self.spectral_indices)
+        grid = vx.spectra_to_grid(profile, self.spectral_indices)
 
         for i in range(self.summary.basis.shape[0]):
             df = self.ref_basis_df[i].to(self.device) * grid
-            base = idft(df, real_in=True, centered=False)
+            base = vx.idft(df, real_in=True, centered=False)
             self.summary.basis[i] = base * self.mask
 
         if len(self.volumes) > 0:
@@ -595,7 +590,7 @@ def main(args):
             embed = torch.from_numpy(embed)
         else:
             print("Applying PCA...")
-            embed = pca_dim_reduction(embed)
+            embed = vx.pca_dim_reduction(embed)
             embed = embed[:, :2]
 
         # from sklearn.manifold import TSNE

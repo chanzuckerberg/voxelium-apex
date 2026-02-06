@@ -14,9 +14,9 @@ import torch.nn.functional as F
 import numpy as np
 from voxelium import size_to_maxr, maxr_to_size, idft, rescale_fourier, smooth_spherical_mask, load_mrc
 
-from positron.sha3d.cache import Cache
-from positron.sha3d.hidden_variable_container import HiddenVariableContainer
-from positron.sha3d.train_utils import load_modules_from_logdir, save_modules_to_logdir, load_module
+from voxelium_apex.sha3d.cache import Cache
+from voxelium_apex.sha3d.hidden_variable_container import HiddenVariableContainer
+from voxelium_apex.sha3d.train_utils import load_modules_from_logdir, save_modules_to_logdir, load_module
 
 
 class Summary(torch.nn.Module):
@@ -114,7 +114,7 @@ class Summary(torch.nn.Module):
         )
 
         # Has to be imported here due to torch extension dependencies
-        from positron.sha3d.model_container import ModelContainer
+        from voxelium_apex.sha3d.model_container import ModelContainer
 
         mnx = ModelContainer.load_from_state_dict(mnx)
         hvc = HiddenVariableContainer.load_from_state_dict(hvc)

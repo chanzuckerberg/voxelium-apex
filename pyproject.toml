@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "voxelium-apex"
+dynamic = ["version"]
+description = "Voxelium-Apex: deployment/test package for the Positron library"
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.9"
+
+authors = [
+  { name = "Dari Kimanius", email = "dari.kimanius@biohub.org" }
+]
+
+license = { text = "MIT" }
+urls = { "Source Code" = "https://github.com/chanzuckerberg/voxelium-apex" }
+
+dependencies = [
+  "alive_progress",
+  "imageio",
+  "loguru",
+  "matplotlib",
+  "mrcfile>=1.4.3",
+  "msgpack",
+  "numpy>=1,<2",
+  "scikit-learn",
+  "scipy",
+  "starfile",
+  "tensorboard",
+  "torch>=2.2,<2.3",
+  "torchvision>=0.17,<0.18",
+  "tqdm",
+  "umap-learn",
+  "vtk",
+  "alive_progress",
+  "voxelium",
+]
+
+[project.optional-dependencies]
+dev = [
+  "black",
+  "ipython",
+  "isort",
+  "jedi<0.18.0",
+  "mkdocs",
+  "mkdocs-material",
+  "mypy",
+  "pre-commit",
+  "pydocstyle",
+  "pytest",
+  "pyinstaller",
+]
+testing = [
+  "pytest",
+]
+
+[project.scripts]
+positron = "voxelium_apex.__main__:main"
+
+[tool.setuptools]
+packages = { find = {} }
+include-package-data = true
+zip-safe = false
+
+[tool.setuptools.dynamic]
+version = { attr = "voxelium_apex.__version__" }
+
+[tool.pytest.ini_options]
+addopts = "-W error"

@@ -4,18 +4,18 @@ on:
   push:
     tags:
       - "v*"
-    branches:
-      - main
-      # - release-test
   workflow_dispatch:
 
-# Least privilege: only read access to repo contents is needed
 permissions:
-  contents: read
+  contents: write  # needed for GitHub Releases
 
 jobs:
-  deploy-test:
+  test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
     steps:
       - uses: actions/checkout@v4
@@ -23,54 +23,55 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: ${{ matrix.python-version }}
 
-      - name: Install CUDA Toolkit 12.4 (nvcc + cudart)
-        run: |
-          set -euxo pipefail
-
-          # Identify Ubuntu version (e.g., 22.04 -> 2204)
-          UBUNTU_VERSION="$(. /etc/os-release && echo "${VERSION_ID}" | tr -d '.')"
-          echo "Ubuntu version: ${UBUNTU_VERSION}"
-
-          # Install NVIDIA CUDA apt repo keyring
-          curl -fsSL -o cuda-keyring.deb \
-            "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu${UBUNTU_VERSION}/x86_64/cuda-keyring_1.1-1_all.deb"
-          sudo dpkg -i cuda-keyring.deb
-          sudo apt-get update
-
-          # Install CUDA toolkit 12.4 (provides nvcc, libcudart, headers)
-          sudo apt-get install -y --no-install-recommends cuda-toolkit-12-4
-
-          # Sanity checks
-          nvcc --version
-          ls -l /usr/local/cuda || true
-
-      - name: Install dependencies
+      - name: Install package (editable) and run basic import check
         run: |
           python -m pip install --upgrade pip
-          pip install -U setuptools setuptools_scm wheel twine build torch
-          pip install -e .
+          python -m pip install -e .
+          python -c "import voxelium_apex; print(voxelium_apex.__version__)"
 
-      # - name: Publish to PyPI
-      #   if: startsWith(github.ref, 'refs/tags/v')
-      #   run: |
-      #     python -m pip install --upgrade twine
-      #     twine upload wheelhouse/*
-      #   env:
-      #     TWINE_USERNAME: __token__
-      #     TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
 
-      - name: Publish to TestPyPI
-        if: startsWith(github.ref, 'refs/tags/v')
+  build-and-publish:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build once (pure python => one wheel is enough)
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tooling
         run: |
-          python -m pip install --upgrade twine
-          twine upload --repository-url https://test.pypi.org/legacy/ wheelhouse/* --verbose
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade build twine
+
+      - name: Build sdist and wheel
+        run: |
+          python -m build
+
+      - name: Twine check
+        run: |
+          twine check dist/*
+
+      - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          gh release create "$TAG_NAME" dist/* \
+            --title "$TAG_NAME" \
+            --notes "Release $TAG_NAME"
+
+      - name: Publish to PyPI
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
-
-      # Optional: extra cleanup at end
-      - name: Docker prune (post-build)
-        if: always()
-        run: docker system prune -af --volumes
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          twine upload dist/*

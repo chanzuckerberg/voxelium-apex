@@ -5,7 +5,7 @@ File for testing VTK
 """
 
 
-from positron.sha3d.vtk_utils import initialize_vtk_resourses, make_cylinder_actor
+from voxelium_apex.sha3d.vtk_utils import initialize_vtk_resourses, make_cylinder_actor
 
 
 if __name__ == "__main__":

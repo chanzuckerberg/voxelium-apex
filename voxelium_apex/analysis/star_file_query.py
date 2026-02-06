@@ -3,11 +3,7 @@
 from __future__ import division, print_function, absolute_import
 
 import argparse
-import numpy as np
 import starfile
-import torch
-
-from voxelium import load_mrc
 
 
 def main(args):
