@@ -28,8 +28,6 @@ dependencies = [
   "scipy",
   "starfile",
   "tensorboard",
-  "torch>=2.2,<2.3",
-  "torchvision>=0.17,<0.18",
   "tqdm",
   "umap-learn",
   "vtk",
