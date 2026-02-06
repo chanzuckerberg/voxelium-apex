@@ -133,3 +133,6 @@ dmypy.json
 
 # No MRC files
 *.mrc
+
+# no .vscode files
+.vscode
