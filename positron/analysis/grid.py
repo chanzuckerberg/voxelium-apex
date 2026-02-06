@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from positron.base import load_mrc, save_mrc, fast_gaussian_filter
+from voxelium import load_mrc, save_mrc, fast_gaussian_filter
 
 
 def load_mrc_(filename):

@@ -7,7 +7,7 @@ import numpy as np
 import starfile
 import torch
 
-from positron.base import load_mrc
+from voxelium import load_mrc
 
 
 def load_mrc_(filename):

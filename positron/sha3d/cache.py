@@ -11,8 +11,6 @@ import torch
 
 import voxelium as vxm
 
-from positron.base import get_spectral_indices
-
 Tensor = TypeVar('torch.tensor')
 
 import torch
@@ -100,7 +98,7 @@ def get_spectral_indices_fixed(
       indices (torch.Tensor): An integer tensor where each value is the floored radial frequency index.
     """
     # Obtain the frequency grids (in cycles per unit length) using get_freq.
-    grids = get_freq(shape, pixel_size=1, rfft=rfft, center=center, device=device)
+    grids = get_freq(shape, rfft=rfft, center=center, device=device)
     
     # Ensure we have a tuple of tensors (even for the 1D case).
     if not isinstance(grids, (tuple, list)):
@@ -117,7 +115,7 @@ def get_spectral_indices_fixed(
     r2 = sum(g**2 for g in scaled_grids)
     
     # Take the square root, floor the result, and cast to an integer type.
-    indices = torch.floor(torch.sqrt(r2)).long()
+    indices = r2.sqrt().round().long()
 
     # Only DC should be zero
     mask = (r2 > 0) & (indices == 0)
@@ -129,6 +127,13 @@ def get_spectral_indices_fixed(
     
     return indices
 
+def get_spectral_indices___(shape):
+    shape = list(shape).copy()
+    rfft = shape[0] // 2 + 1 == shape[-1]
+    shape[-1] = shape[0]
+    out = get_spectral_indices_fixed(shape, rfft=rfft, center=True)
+    # out = get_spectral_indices_old(shape)
+    return out
 
 class Cache:
     square_masks = {}
@@ -181,13 +186,7 @@ class Cache:
     def _get_spectral_indices(
             shape: Union[Tuple[int, int], Tuple[int, int, int]], numpy: bool = False, max_r: int = None
     ) -> Union[Tensor, np.ndarray]:
-        out = get_spectral_indices_fixed(shape, rfft=True, centered=True, maxr=max_r)
-        
-        np.savetxt(
-            "vxm_indices.txt",
-            out.cpu().numpy().astype(int),
-            fmt="%3d"
-        )
+        out = get_spectral_indices___(shape)
 
         if max_r is not None:
             out[out >= max_r] = max_r - 1
@@ -215,13 +214,7 @@ class Cache:
     def _get_spectral_mask(
             shape: Union[Tuple[int, int], Tuple[int, int, int]], max_r: int, min_r: int = None, numpy: bool = False
     ) -> Union[Tensor, np.ndarray]:
-        out = get_spectral_indices_fixed(shape, rfft=True, centered=True, maxr=max_r)
-        
-        np.savetxt(
-            "vxm_indices_mask.txt",
-            out.cpu().numpy().astype(int),
-            fmt="%3d"
-        )
+        out = get_spectral_indices___(shape)
 
         max_r = min(vxm.size_to_maxr(shape[0]), max_r)
 

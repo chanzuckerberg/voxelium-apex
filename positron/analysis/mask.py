@@ -17,7 +17,7 @@ import matplotlib.pylab as plt
 import torch
 import torch.nn.functional as F
 
-from positron.base import load_mrc, save_mrc
+from voxelium import load_mrc, save_mrc
 
 
 def load_mrc_(filename):

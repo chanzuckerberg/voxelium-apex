@@ -86,7 +86,7 @@ class Viewer:
 
         self.ft_shape = list(summary.basis.shape[1:])
         self.ft_shape[-1] = self.ft_shape[-1] // 2 + 1
-        self.spectral_indices = get_spectral_indices(self.ft_shape, device=self.device, centered=False)
+        self.spectral_indices = get_spectral_indices(self.ft_shape, device=self.device, center=False)
 
         self.voxel_size = 1
         if "voxel_size" in summary.metadata:

@@ -16,7 +16,7 @@ import matplotlib
 import matplotlib.pylab as plt
 import torch
 
-from positron.base import load_mrc, spherical_mask, spectral_resolution, get_fsc_real, get_power_real, \
+from voxelium import load_mrc, spherical_mask, spectral_resolution, get_fsc_real, get_power_real, \
     spectral_index_from_resolution, idft
 
 
