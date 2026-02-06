@@ -20,10 +20,10 @@ def main():
     modules = {
         "analysis_spectral": spectral,
         "analysis_star_subset": star_file_subset,
-        "SHA3D": train,
-        "SHA3D_summary": summary,
-        "SHA3D_viewer": viewer,
-        "SHA3D_submit": job_submit,
+        "sha3d": train,
+        "sha3d_summary": summary,
+        "sha3d_viewer": viewer,
+        "sha3d_submit": job_submit,
     }
 
     subparsers = parser.add_subparsers(

@@ -14,7 +14,7 @@ Once you have that ready you can just run:
 Run `vxm-apex -h` to see a list of modules.
 To run the analysis, the sha3D module can be run as follows:
 
-```vxm-apex SHA3D <input_star_data> <log_directory> --gpu 0```
+```vxm-apex sha3d <input_star_data> <log_directory> --gpu 0```
 
 Here, `<input_star_data>` is an input STAR-file containing all the particles with CTF and pose parameters set.
 `<log_directory>` will contain the results of the job. 
@@ -27,7 +27,7 @@ NOTE: You need to install extension for this, see above.
 
 To visualize the results run:
 
-```vxm-apex sha3D_viwer <log_directory>```
+```vxm-apex sha3d_viewer <log_directory>```
 
 In the above, `<log_directory>` is the path to the directory containing the results of the SHA3D analysis, see above.
 
