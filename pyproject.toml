@@ -28,8 +28,6 @@ dependencies = [
   "scipy",
   "starfile",
   "tensorboard",
-  "tqdm",
-  "umap-learn",
   "vtk",
   "alive_progress",
   "voxelium",
@@ -47,7 +45,6 @@ dev = [
   "pre-commit",
   "pydocstyle",
   "pytest",
-  "pyinstaller",
 ]
 testing = [
   "pytest",
