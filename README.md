@@ -2,12 +2,14 @@
 
 This repository contains the voxelium-apex codes -- a package for cryoEM/cryoET heterogeneity reconstruction analysis and visualization.
 
-### Full Installation
-If you need to run reconstruction (e.g. on a computational node), you need to build and install the torch extensions.
-You will need to have a CUDA toolkit installed for this that matches the pytorch version installed. 
-Once you have that ready you can just run:  
+### Installation from PyPI
+First create and activate a Conda or standard Python virtual environment. Then install the prebuilt wheels distributed via PyPI:
+```pip install voxelium-apex```
 
-```pip3 install .```
+
+### Local installation (build from source)
+After cloning the repository and navigating (`cd`) into the project directory, first create and activate a Conda or standard Python virtual environment.
+```pip install .```
 
 
 ## 3D Spectral Heterogeneity Analysis (SHA)
