@@ -1,6 +1,6 @@
-# Positron Alpha Testing
+# Voxelium-apex 
 
-This repository currently contains the alpha version of the Positron library.
+This repository contains the voxelium-apex codes -- a package for cryoEM/cryoET heterogeneity reconstruction analysis and visualization.
 
 ### Full Installation
 If you need to run reconstruction (e.g. on a computational node), you need to build and install the torch extensions.

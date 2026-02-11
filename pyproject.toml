@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "voxelium-apex"
 dynamic = ["version"]
-description = "Voxelium-Apex: deployment/test package for the Positron library"
+description = "Voxelium-apex: a package for cryoEM/cryoET heterogeneity reconstruction analysis and visualization"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.9"
 
