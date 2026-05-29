@@ -38,6 +38,8 @@ dependencies = [
   "tensorboard",
   "vtk",
   "voxelium",
+  "zarr-particle-tools",
+  "rich-click"
 ]
 
 [project.optional-dependencies]
