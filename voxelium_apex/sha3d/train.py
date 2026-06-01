@@ -547,7 +547,7 @@ def train(rank, args, ddp_args):
 
                         with torch.no_grad():
                             subset_size = torch.sum(~train_mask) * 2
-                            if not final_train_epochs and this_batch_size >= subset_size:
+                            if not final_train_epochs and 0 < subset_size <= this_batch_size:
                                 with torch.no_grad():
                                     train_mask_ = train_mask[:subset_size]
                                     s_ = s[:subset_size].detach()
