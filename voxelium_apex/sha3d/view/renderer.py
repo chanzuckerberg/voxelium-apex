@@ -2,7 +2,7 @@ import time
 
 import numpy as np
 
-from voxelium_apex.sha3d.vtk_utils import initialize_vtk_resourses, \
+from voxelium_apex.sha3d.view.vtk_utils import initialize_vtk_resourses, \
     make_volume_actor, numpy_volume_as_vtk_image_data, rgb_hex_to_dec
 
 DEBUG = False

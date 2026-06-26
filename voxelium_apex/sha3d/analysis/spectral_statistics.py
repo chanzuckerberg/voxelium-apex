@@ -11,9 +11,9 @@ import numpy as np
 from voxelium import grid_spectral_average, spectrum_to_grid_mean, size_to_maxr
 
 
-from voxelium_apex.sha3d.cache import Cache
+from voxelium_apex.sha3d.infra.cache import Cache
 
-from .train_utils import smoothen_spectra
+from voxelium_apex.sha3d.train.train_utils import smoothen_spectra
 
 Tensor = TypeVar('torch.tensor')
 

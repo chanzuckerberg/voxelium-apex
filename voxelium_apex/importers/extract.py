@@ -79,25 +79,51 @@ def main(args):
         parse_extract_local_copick_subtomograms,
         parse_extract_local_subtomograms,
     )
+    from voxelium_apex.importers.tomo2py import tomo2py
+    import starfile, os, yaml
 
     setup_logging(debug=getattr(args, "debug", False))
 
     def _path(value):
         return Path(value) if value is not None else None
 
+
+    workspace = args.workspace or Path(".")
+    rel_particles = workspace / args.particles if args.particles else None
+    rel_tomos = workspace / args.tomograms
+    rel_motion = workspace / args.motion if args.motion else None
+
+    _path(args.output).mkdir(parents=True, exist_ok=True)
+    job_inputs = {
+        "workspace": str(args.workspace),
+        "tomograms": str(args.tomograms),
+        "motion": str(args.motion),
+        "particles": str(args.particles),
+        "output": str(args.output),
+        "box_size": args.box_size,
+        "crop_size": args.crop_size,
+        "bin": args.bin,
+        **{k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()
+           if k not in ("workspace", "tomograms", "motion", "particles", "output",
+                        "box_size", "crop_size", "bin")},
+    }
+    with open(_path(args.output) / "job_inputs.yaml", "w") as f:
+        yaml.dump(job_inputs, f, default_flow_style=False, sort_keys=True)
+
     common = dict(
         box_size=args.box_size,
         output_dir=_path(args.output),
         crop_size=args.crop_size,
         bin=args.bin,
-        tiltseries_relative_dir=_path(args.tiltseries_relative_dir),
-        tomograms_starfile=_path(args.tomograms),
+        tiltseries_relative_dir=workspace,
+        tomograms_starfile=rel_tomos,
+        trajectories_starfile=rel_motion,
         **_FIXED_POLICY,
     )
 
     if args.particles:
         parse_extract_local_subtomograms(
-            particles_starfile=_path(args.particles),
+            particles_starfile=rel_particles,
             debug=getattr(args, "debug", False),
             **common,
         )
@@ -111,3 +137,20 @@ def main(args):
             copick_run_names=_split_csv(getattr(args, "runs", None)),
             **common,
         )
+
+        # TODO: Test the copick to see what the output is like
+
+    # Convert the particles.star file to single particle format
+    particles = args.output / "particles.star"
+    particles_df = tomo2py(
+        particles_file=particles,
+        workspace_dir=_path(args.workspace),
+        tomograms_file=_path(args.tomograms),
+        compute_eulers=True,
+        verbose=True,
+    )
+    optics_df = starfile.read(particles)["optics"]
+    data = {"optics": optics_df, "particles": particles_df}
+    output_fname = particles.with_name(particles.stem + '_spstack.star')
+    print(f"The output file will be written to {output_fname}.")
+    starfile.write(data, output_fname)

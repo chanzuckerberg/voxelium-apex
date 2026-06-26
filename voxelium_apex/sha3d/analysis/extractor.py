@@ -5,8 +5,8 @@ import torch
 import numpy as np
 
 from voxelium import save_mrc, load_mrc, get_bounding_box, gaussian_blur
-from voxelium_apex.sha3d.summary import Summary
-from voxelium_apex.sha3d.train_utils import setup_device
+from voxelium_apex.sha3d.analysis.summary import Summary
+from voxelium_apex.sha3d.train.train_utils import setup_device
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extracts the weights of a decoder layer and prints them as MRC files.")

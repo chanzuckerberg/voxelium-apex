@@ -10,7 +10,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from voxelium.base import fourier_shift_2d
-from voxelium_apex.sha3d.cache import Cache
+from voxelium_apex.sha3d.infra.cache import Cache
 
 import matplotlib.pyplot as plt
 

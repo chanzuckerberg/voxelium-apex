@@ -10,7 +10,7 @@ import torch
 import numpy as np
 from voxelium import fourier_shift_2d, dt_desymmetrize, idft, integer_shift_2d, save_mrc
 
-from .mask_applicator import apply_solvent_mask
+from voxelium_apex.sha3d.model.mask_applicator import apply_solvent_mask
 
 
 class SubtractionHelper:

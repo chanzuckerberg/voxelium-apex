@@ -10,9 +10,9 @@ from typing import List, TypeVar, Dict, Union
 
 from voxelium import ModelContainer, spectral_index_from_resolution, size_to_maxr, ResidBlock
 
-from .spectral_statistics import SpectralStatistics
-from .train_utils import parse_bounds_str
-from .base_optim import BaseOptimizer
+from voxelium_apex.sha3d.analysis.spectral_statistics import SpectralStatistics
+from voxelium_apex.sha3d.train.train_utils import parse_bounds_str
+from voxelium_apex.sha3d.train.base_optim import BaseOptimizer
 from .structure_decoder import StructureDecoder
 
 

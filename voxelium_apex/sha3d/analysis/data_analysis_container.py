@@ -9,12 +9,12 @@ import warnings
 import torch
 import numpy as np
 
-from voxelium.base.single_particle_dataset import SingleParticleDataset
 from voxelium import relion
-from voxelium_apex.sha3d.distributed_processing import DistributedProcessing
-from voxelium_apex.sha3d.hidden_variable_container import HiddenVariableContainer, HiddenVariableModule
-from voxelium_apex.sha3d.train_utils import get_np_dtype, load_modules_from_logdir, save_modules_to_logdir
-from voxelium_apex.sha3d.model_container import ModelContainer
+from voxelium.base.single_particle_dataset import SingleParticleDataset
+from voxelium_apex.sha3d.infra.distributed_processing import DistributedProcessing
+from voxelium_apex.sha3d.analysis.hidden_variable_container import HiddenVariableContainer, HiddenVariableModule
+from voxelium_apex.sha3d.train.train_utils import get_np_dtype, load_modules_from_logdir, save_modules_to_logdir
+from voxelium_apex.sha3d.model.model_container import ModelContainer
 
 
 # Default hidden variable learning rates

@@ -19,9 +19,9 @@ import torch
 import multiprocessing as mp
 
 import voxelium as vxm
-from voxelium_apex.sha3d.summary import Summary
-from voxelium_apex.sha3d.train_utils import setup_device
-from voxelium_apex.sha3d.renderer import VolumeRenderer
+from voxelium_apex.sha3d.analysis.summary import Summary
+from voxelium_apex.sha3d.train.train_utils import setup_device
+from voxelium_apex.sha3d.view.renderer import VolumeRenderer
 
 # from matplotlib import backend_bases
 # backend_bases.NavigationToolbar2.toolitems = (

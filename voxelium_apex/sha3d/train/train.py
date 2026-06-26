@@ -17,14 +17,14 @@ from voxelium.base.io_logger import IOLogger
 from voxelium.base.single_particle_validation_sampler import SingleParticleValidationSampler
 from voxelium.base.subtomo_validation_sampler import SubtomoValidationSampler
 
-from .feature_extractor import FeatureExtractor
-from .mask_applicator import MaskApplicator
-from .subtraction import SubtractionHelper
+from voxelium_apex.sha3d.model.feature_extractor import FeatureExtractor
+from voxelium_apex.sha3d.model.mask_applicator import MaskApplicator
+from voxelium_apex.sha3d.analysis.subtraction import SubtractionHelper
 from .train_arguments import append_train_arguments
-from .distributed_processing import DistributedProcessing
-from .tensorboard_utils import TensorboardSummary
+from voxelium_apex.sha3d.infra.distributed_processing import DistributedProcessing
+from voxelium_apex.sha3d.view.tensorboard_utils import TensorboardSummary
 from .train_utils import *
-from .data_analysis_container import DatasetAnalysisContainer
+from voxelium_apex.sha3d.analysis.data_analysis_container import DatasetAnalysisContainer
 
 
 def cyclic_lr(min_lr, max_lr, x, max_x):

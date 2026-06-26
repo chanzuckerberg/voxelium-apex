@@ -2,15 +2,38 @@
 
 from __future__ import division, print_function, absolute_import
 
-import argparse
+import argparse, starfile
+from pathlib import Path
 import numpy as np
-import starfile
-import torch
 
-from voxelium import load_mrc
+def export_subset(expanded_particles, source_particles, subset, output):
+    """Export a subset of rows from a STAR-file."""
+
+    # Load the particles from the STAR-file and the subset from the CSV file.
+    print(f'Exporting subset ({subset}) of particles ({source_particles}) to: {output}')
+
+    # Read the particles from the STAR-file and the subset from the CSV file.
+    subset = np.loadtxt(subset, dtype=int)
+    source_df = starfile.read(source_particles)
+    general = source_df['general']
+    optics = source_df['optics']
+    particles = source_df['particles']
+    
+    # If an expanded particles STAR-file is provided, use it to subset the source particles.
+    expand_df = starfile.read(expanded_particles)
+    keep_particles = expand_df['particles'].iloc[subset].reset_index(drop=True)
+    keep_particles = keep_particles['rlnTomoParticleName'].unique()
+    particles = particles[particles['rlnTomoParticleName'].isin(keep_particles)]
+
+    # Write the output STAR-file.
+    output = Path(output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    starfile.write({'general': general, 'optics': optics, 'particles': particles}, output)
 
 
 def load_mrc_(filename):
+    from voxelium import load_mrc
+    import torch
     grid, voxel_size, global_origin = load_mrc(filename)
     grid = torch.from_numpy(grid.copy())
     return grid, voxel_size, global_origin

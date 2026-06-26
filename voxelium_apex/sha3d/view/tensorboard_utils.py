@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
 from voxelium import dt_desymmetrize, idft, make_imshow_fig, make_scatter_fig, pca_dim_reduction, make_heatmap_fig
-from voxelium_apex.sha3d.hidden_variable_container import HiddenVariableContainer
+from voxelium_apex.sha3d.analysis.hidden_variable_container import HiddenVariableContainer
 
 Tensor = TypeVar('torch.tensor')
 
