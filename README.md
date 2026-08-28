@@ -37,10 +37,10 @@ In the above, `<log_directory>` is the path to the directory containing the resu
 
 ## 🤝 Contributor covenant code of conduct
 
-This project adheres to the Contributor Covenant code of conduct. By participating, you are expected to uphold this code. Please report unacceptable behavior to opensource@chanzuckerberg.com.
+This project adheres to the Contributor Covenant code of conduct. By participating, you are expected to uphold this code. Please report unacceptable behavior to opensource@biohub.org.
 
 Responsible Use: We are committed to advancing the responsible development and use of artificial intelligence. Please follow our [Acceptable Use Policy](https://virtualcellmodels.cziscience.com/acceptable-use-policy) when engaging with the model.
 
 ## 🔒 Security
 
-If you believe you have found a security issue, please responsibly disclose by contacting us at security@chanzuckerberg.com.
+If you believe you have found a security issue, please responsibly disclose by contacting us at security@biohub.org.

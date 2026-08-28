@@ -1,3 +1,3 @@
 Security
 
-Please disclose security issues responsibly by contacting security@chanzuckerberg.com.
+Please disclose security issues responsibly by contacting security@biohub.org.
